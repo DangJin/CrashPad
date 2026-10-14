@@ -43,7 +43,7 @@ test('all road sides and directions render finite geometry, with distinct entry 
     const scene = withRoad(createScene(), road), options = { ...scene.roadOptions, side, direction };
     const svg = roadMarkup(road, scene.lanes, options);
     assert.ok(!/NaN|Infinity|undefined/.test(svg));
-    assert.ok(svg.includes('fill="#e3e7ec"'));
+    assert.ok(svg.includes('fill="url(#asphalt)"') && svg.includes('id="asphalt"'));
   }
   assert.notEqual(roadMarkup('rampMerge', 2), roadMarkup('rampExit', 2));
   assert.notEqual(roadMarkup('laneAdd', 2), roadMarkup('laneDrop', 2));

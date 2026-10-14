@@ -1,15 +1,19 @@
 import { WIDTH, HEIGHT, MOTIONS, SPECIAL_ROADS, roadDescription, pathFor, plannedPathFor, planLabel, samplePath, carAtProgress, carAtPlannedProgress, signalDirections, signalConfig, SIGNAL_APPROACHES, SIGNAL_STATES, signalAngle, carAtFullProgress, participantColor, participantType, participantName, participantExportName } from './model.js';
 import { participantGlyph } from './participants.js';
-import { specialRoadMarkup } from './roads.js';
+import { specialRoadMarkup, roadSurfaceDefs } from './roads.js';
 
 export const escapeXml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
 export function roadMarkup(road, lanes = 2, options = {}) {
   if (SPECIAL_ROADS.includes(road)) return specialRoadMarkup(road, lanes, options);
+  return roadSurfaceDefs() + basicRoadMarkup(road, lanes, options);
+}
+function basicRoadMarkup(road, lanes = 2, options = {}) {
+  if (SPECIAL_ROADS.includes(road)) return specialRoadMarkup(road, lanes, options);
   const w = lanes * 95 + 48, left = 400 - w / 2, right = 400 + w / 2;
   const line = (x1, y1, x2, y2, dash = false) => `<path d="M${x1} ${y1}L${x2} ${y2}" stroke="${dash ? '#fff' : '#a6b09d'}" stroke-width="${dash ? 3 : 2}" ${dash ? 'stroke-dasharray="18 18"' : ''}/>`;
-  const surface = '#e3e7ec';
+  const surface = 'url(#asphalt)';
   if (road === 'parking') {
-    return `<rect x="100" y="65" width="600" height="470" rx="12" fill="${surface}" stroke="#c2cad3" stroke-width="3"/>${[0, 1, 2, 3, 4].map(i => `<path d="M${110 + i * 116} 75v125h116V75 M${110 + i * 116} 525V400h116v125" fill="none" stroke="white" stroke-width="4"/>`).join('')}<text x="400" y="320" text-anchor="middle" fill="#a0aaba" font-size="22" font-family="sans-serif">停车通道</text>`;
+    return `<rect x="100" y="65" width="600" height="470" rx="12" fill="${surface}" stroke="#c8c9be" stroke-width="3"/>${[0, 1, 2, 3, 4].map(i => `<path d="M${110 + i * 116} 75v125h116V75 M${110 + i * 116} 525V400h116v125" fill="none" stroke="white" stroke-width="4"/>`).join('')}<text x="400" y="320" text-anchor="middle" fill="#e0e3df" font-size="22" font-family="sans-serif">停车通道</text>`;
   }
   const junction = road === 'cross' || road === 'tee';
   const top = 300 - w / 2, bottom = 300 + w / 2;
@@ -21,7 +25,7 @@ export function roadMarkup(road, lanes = 2, options = {}) {
   }
   const edge = junction ? '' : `${line(left + 14, 0, left + 14, 600)}${line(right - 14, 0, right - 14, 600)}`;
   const crossing = junction ? [left - 42, right + 18].map(x => Array.from({ length: Math.max(4, lanes * 3) }, (_, i) => `<rect x="${x}" y="${top + 15 + i * (w - 30) / (lanes * 3)}" width="24" height="10" rx="1" fill="#fff"/>`).join('')).join('') : '';
-  return `<path d="${shape}" fill="${surface}" stroke="#c7cfd8" stroke-width="3"/>${marks}${edge}${crossing}`;
+  return `<path d="${shape}" fill="${surface}" stroke="#c8c9be" stroke-width="3"/>${marks}${edge}${crossing}`;
 }
 export function signalsMarkup(scene, { interactive = false, selected = null, hideUnknownSignals = false } = {}) {
   const config = signalConfig(scene);
@@ -51,20 +55,21 @@ export function sceneMarkup(scene, { selected = null, interactive = false, grid 
   const paths = scene.cars.map(car => {
     const p = pathFor(car);
     if (!p) return '';
-    const sample = samplePath(p, .48);
+    const midpoint = samplePath(p, .5);
+    const sample = samplePath(p, interactive && selected === car.id ? .3 : .48);
     const arrowX = sample.x, arrowY = sample.y;
     const heading = Math.atan2(sample.dy, sample.dx) * 180 / Math.PI;
-    return `<path d="${p.d}" fill="none" stroke="${participantColor(car)}" stroke-opacity=".8" stroke-width="4" stroke-dasharray="9 7" pointer-events="none"/><path d="M-8 -6L7 0L-8 6L-4 0Z" transform="translate(${arrowX} ${arrowY}) rotate(${heading})" fill="${participantColor(car)}" pointer-events="none"/>${interactive && selected === car.id ? `<circle data-route="${car.id}" cx="${p.start.x}" cy="${p.start.y}" r="11" fill="white" stroke="${participantColor(car)}" stroke-width="3" class="route-handle"/>` : `<circle cx="${p.start.x}" cy="${p.start.y}" r="5" fill="${participantColor(car)}"/>`}`;
+    return `<path d="${p.d}" fill="none" stroke="white" stroke-opacity=".85" stroke-width="6.5" stroke-dasharray="9 7" pointer-events="none"/><path d="${p.d}" fill="none" stroke="${participantColor(car)}" stroke-opacity=".8" stroke-width="4" stroke-dasharray="9 7" pointer-events="none"/><path d="M-8 -6L7 0L-8 6L-4 0Z" transform="translate(${arrowX} ${arrowY}) rotate(${heading})" fill="${participantColor(car)}" stroke="white" stroke-width="2" paint-order="stroke" stroke-linejoin="round" pointer-events="none"/>${interactive && selected === car.id ? `<circle data-route="${car.id}" cx="${p.start.x}" cy="${p.start.y}" r="11" fill="white" stroke="${participantColor(car)}" stroke-width="3" class="route-handle"/><rect data-route-bend="${car.id}" x="${midpoint.x - 8}" y="${midpoint.y - 8}" width="16" height="16" rx="4" fill="white" stroke="${participantColor(car)}" stroke-width="2.5" class="route-handle"><title>拖动调整已行驶路线曲线</title></rect>` : `<circle cx="${p.start.x}" cy="${p.start.y}" r="5" fill="${participantColor(car)}" stroke="white" stroke-width="1.5"/>`}`;
   }).join('');
   const plans = replaying && (replayMode === 'actual' && progress < 1 || replayMode === 'full' && progress < .5) ? '' : scene.cars.map(car => {
     const p = plannedPathFor(car);
     if (!p) return '';
     const color = participantColor(car);
-    return `<g data-plan="${car.id}"><path d="${p.d}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow-${car.id})" pointer-events="none"/><text x="${p.control.x + 12}" y="${Math.max(20, p.control.y - 12)}" font-family="sans-serif" font-size="13" fill="${color}" pointer-events="none">计划${planLabel(car.plan)}</text>${interactive && selected === car.id ? `<circle data-plan-target="${car.id}" cx="${p.end.x}" cy="${p.end.y}" r="10" fill="white" stroke="${color}" stroke-width="3" class="route-handle"/>${car.plan.turn === 'straight' ? '' : `<rect data-plan-bend="${car.id}" x="${p.control.x - 7}" y="${p.control.y - 7}" width="14" height="14" rx="3" fill="white" stroke="${color}" stroke-width="2" class="route-handle"/>`}` : ''}</g>`;
+    return `<g data-plan="${car.id}"><path d="${p.d}" fill="none" stroke="white" stroke-opacity=".85" stroke-width="6.5" stroke-linecap="round" pointer-events="none"/><path d="${p.d}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow-${car.id})" pointer-events="none"/><text x="${p.control.x + 12}" y="${Math.max(20, p.control.y - 12)}" font-family="sans-serif" font-size="13" fill="${color}" stroke="white" stroke-width="3" paint-order="stroke" pointer-events="none">计划${planLabel(car.plan)}</text>${interactive && selected === car.id ? `<circle data-plan-target="${car.id}" cx="${p.end.x}" cy="${p.end.y}" r="10" fill="white" stroke="${color}" stroke-width="3" class="route-handle"/>${car.plan.turn === 'straight' ? '' : `<rect data-plan-bend="${car.id}" x="${p.control.x - 7}" y="${p.control.y - 7}" width="14" height="14" rx="3" fill="white" stroke="${color}" stroke-width="2" class="route-handle"/>`}` : ''}</g>`;
   }).join('');
   const c = replaying ? replayMode === 'full' ? progress >= .49 && progress <= .5 ? scene.collision : null : replayMode === 'planned' || progress < 1 ? null : scene.collision : scene.collision;
   const collision = c ? `<g data-collision="true" transform="translate(${c.x} ${c.y})" ${interactive ? 'class="collision" tabindex="0" role="button" aria-label="碰撞点，方向键移动"' : ''}><circle r="21" fill="#fff" fill-opacity=".9"/><path d="M0 -17L4 -8L13 -12L10 -3L18 2L8 6L9 16L0 11L-8 17L-8 6L-17 2L-9 -4L-13 -12L-4 -8Z" fill="#f1b642" stroke="#ce861b" stroke-width="1.5"/></g>` : '';
-  return `<defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#dce3ea"/></pattern>${scene.cars.map(car => `<marker id="arrow-${car.id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10Z" fill="${participantColor(car)}"/></marker>`).join('')}</defs><rect width="${WIDTH}" height="${HEIGHT}" fill="#f7f9fb"/>${grid ? `<rect width="800" height="600" fill="url(#dots)"/>` : ''}${`<g ${interactive ? 'data-road-object="true"' : ''}>${roadMarkup(scene.road, scene.lanes, scene.roadOptions)}</g>`}${signalsMarkup(scene, { interactive, selected, hideUnknownSignals })}${paths}${plans}${scene.cars.map(car => carMarkup(replaying ? replayMode === 'full' ? carAtFullProgress(car, progress) : replayMode === 'planned' ? carAtPlannedProgress(car, progress) : carAtProgress(car, progress) : car, selected === car.id, interactive)).join('')}${collision}<g transform="translate(751 42)" fill="#798799" font-family="sans-serif" text-anchor="middle"><path d="M0 -12L5 5L0 1L-5 5Z"/><text y="23" font-size="12">北</text></g>`;
+  return `<defs><pattern id="grass" width="64" height="64" patternUnits="userSpaceOnUse"><rect width="64" height="64" fill="#b4c89b"/><path d="m8 13 1-4 2 3m23 10 2-5 1 4m17 29 1-4 2 2m-41 7 1-4 2 3" fill="none" stroke="#6d9158" stroke-opacity=".25" stroke-width=".8"/><path d="m21 36 1-3 1 2m27-27 1-3 1 2m-21 49 1-3 2 2" fill="none" stroke="#e6edce" stroke-opacity=".4" stroke-width="1"/></pattern><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#769563" fill-opacity=".35"/></pattern>${scene.cars.map(car => `<marker id="arrow-${car.id}" viewBox="-2 -2 14 14" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10Z" fill="${participantColor(car)}" stroke="white" stroke-width="1.5" paint-order="stroke" stroke-linejoin="round"/></marker>`).join('')}</defs><rect width="${WIDTH}" height="${HEIGHT}" fill="url(#grass)"/>${grid ? `<rect width="800" height="600" fill="url(#dots)"/>` : ''}${`<g ${interactive ? 'data-road-object="true"' : ''}>${roadMarkup(scene.road, scene.lanes, scene.roadOptions)}</g>`}${signalsMarkup(scene, { interactive, selected, hideUnknownSignals })}${paths}${plans}${scene.cars.map(car => carMarkup(replaying ? replayMode === 'full' ? carAtFullProgress(car, progress) : replayMode === 'planned' ? carAtPlannedProgress(car, progress) : carAtProgress(car, progress) : car, selected === car.id, interactive)).join('')}${collision}<g transform="translate(751 42)" fill="#798799" font-family="sans-serif" text-anchor="middle"><path d="M0 -12L5 5L0 1L-5 5Z"/><text y="23" font-size="12">北</text></g>`;
 }
 function wrapText(text, max = 44) {
   const lines = [];
@@ -75,7 +80,7 @@ function wrapText(text, max = 44) {
   }
   return lines;
 }
-export const sceneTitle = scene => scene.title?.trim() || '事故示意图';
+export const sceneTitle = scene => scene.title?.trim() || '当时是这么回事，大家给评评理';
 export function exportSvg(scene, sceneOptions = {}) {
   const lines = scene.note.trim() ? wrapText(scene.note.trim()) : [];
   const metadata = `${roadDescription(scene)}${scene.location.trim() ? ' · ' + scene.location.trim() : ''}${scene.date.trim() ? ' · ' + scene.date.trim().replace('T', ' ') : ''}`;

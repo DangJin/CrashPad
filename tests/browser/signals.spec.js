@@ -23,7 +23,7 @@ test('junction light colors can be configured, undone, saved and exported', asyn
   await expect(page.locator('#scene [data-signal-direction="north"]')).toHaveAttribute('data-signal-state', 'red');
   await page.locator('.app-header [data-action="preview"]').click();
   for (const preset of ['original', 'xiaohongshu', 'douyin']) {
-    await page.locator('#export-ratio').selectOption(preset);
+    await page.locator('#export-ratio').locator('[data-value="' + preset + '"]').click();
     await expect(page.locator('#preview-image [data-signal-direction="east"]')).toHaveAttribute('data-signal-state', 'green');
   }
   await page.locator('#back-edit').click();
@@ -78,7 +78,7 @@ test('traffic lights rotate for each approach and allow manual orientation in th
   await page.reload();
   await expect(page.locator('#scene [data-signal-direction="east"] [data-signal-angle]')).toHaveAttribute('transform', 'rotate(315)');
   await page.locator('.app-header [data-action="preview"]').click();
-  await page.locator('#export-ratio').selectOption('douyin');
+  await page.locator('#export-ratio').locator('[data-value="' + 'douyin' + '"]').click();
   await expect(page.locator('#preview-image [data-signal-direction="east"] [data-signal-angle]')).toHaveAttribute('transform', 'rotate(315)');
   await page.locator('#back-edit').click();
   await page.locator('#scene [data-signal-direction="east"]').click();

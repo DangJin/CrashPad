@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { WIDTH, HEIGHT, clamp, clone, pathFor, plannedPathFor, setPlanPoint, moveCar, LATERAL_MOTIONS } from '../model.js';
+import { WIDTH, HEIGHT, clamp, clone, samplePath, setRouteBend, pathFor, plannedPathFor, setPlanPoint, moveCar, LATERAL_MOTIONS } from '../model.js';
 import { sceneMarkup } from '../scene.js';
 
 export default function SceneCanvas({ editor, selected, chooseCar, chooseSignal, chooseRoad, clearSelection, tool, setTool, replay, grid, zoom, notify }) {
@@ -15,13 +15,14 @@ export default function SceneCanvas({ editor, selected, chooseCar, chooseSignal,
     if (tool === 'collision') { editor.mutate(s => { s.collision = p; }); setTool('select'); notify('已标记碰撞点，可拖动调整'); return; }
     const signal = event.target.closest('[data-signal-direction]');
     if (signal) { event.preventDefault(); chooseSignal(signal.dataset.signalDirection); return; }
+    const routeBend = event.target.closest('[data-route-bend]');
     const car = event.target.closest('[data-car]'), route = event.target.closest('[data-route]'), collision = event.target.closest('[data-collision]'), target = event.target.closest('[data-plan-target]'), bend = event.target.closest('[data-plan-bend]');
-    if (!car && !route && !collision && !target && !bend) { if (event.target.closest('[data-road-object]')) chooseRoad(); else clearSelection(); return; }
+    if (!car && !route && !collision && !target && !bend && !routeBend) { if (event.target.closest('[data-road-object]')) chooseRoad(); else clearSelection(); return; }
     event.preventDefault();
-    const id = car?.dataset.car || route?.dataset.route || target?.dataset.planTarget || bend?.dataset.planBend;
+    const id = routeBend?.dataset.routeBend || car?.dataset.car || route?.dataset.route || target?.dataset.planTarget || bend?.dataset.planBend;
     const source = editor.sceneRef.current, vehicle = source.cars.find(c => c.id === id);
-    const item = collision ? source.collision : route ? pathFor(vehicle).start : target || bend ? plannedPathFor(vehicle)[target ? 'end' : 'control'] : vehicle;
-    drag.current = { pointerId: event.pointerId, type: collision ? 'collision' : route ? 'route' : target ? 'plan-target' : bend ? 'plan-bend' : 'car', id, dx: p.x - item.x, dy: p.y - item.y, before: clone(source) };
+    const item = collision ? source.collision : routeBend ? samplePath(pathFor(vehicle), .5) : route ? pathFor(vehicle).start : target || bend ? plannedPathFor(vehicle)[target ? 'end' : 'control'] : vehicle;
+    drag.current = { pointerId: event.pointerId, type: collision ? 'collision' : routeBend ? 'route-bend' : route ? 'route' : target ? 'plan-target' : bend ? 'plan-bend' : 'car', id, dx: p.x - item.x, dy: p.y - item.y, before: clone(source) };
     if (id) chooseCar(id); else clearSelection();
     svgRef.current.setPointerCapture(event.pointerId);
   }
@@ -33,6 +34,7 @@ export default function SceneCanvas({ editor, selected, chooseCar, chooseSignal,
     else next.cars = next.cars.map(c => {
       if (c.id !== d.id) return c;
       if (d.type === 'plan-target' || d.type === 'plan-bend') return setPlanPoint(c, d.type === 'plan-target' ? 'target' : 'bend', { x, y });
+      if (d.type === 'route-bend') return setRouteBend(c, { x, y });
       if (d.type === 'route') return { ...c, start: { x: clamp(x, 0, WIDTH), y: clamp(y, 0, HEIGHT) }, motion: ['left', 'right', 'change', ...LATERAL_MOTIONS].includes(c.motion) ? c.motion : 'custom' };
       return moveCar(c, x, y);
     });

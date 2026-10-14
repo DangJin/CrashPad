@@ -9,9 +9,11 @@ import PropertiesPanel from './components/PropertiesPanel.jsx';
 import SceneCanvas from './components/SceneCanvas.jsx';
 import ReplayBar from './components/ReplayBar.jsx';
 import ExportDialog from './components/ExportDialog.jsx';
+import WelcomeDialog, { hasSeenWelcome } from './components/WelcomeDialog.jsx';
 
 export default function App() {
   const editor = useEditor(), replay = useReplay();
+  const [welcomeOpen, setWelcomeOpen] = useState(() => !hasSeenWelcome());
   const [selected, setSelected] = useState(() => editor.scene.cars[0]?.id || 'road'), [tool, setTool] = useState('select');
   const [palette, setPalette] = useState('road'), [tab, setTab] = useState('properties');
   const [grid, setGrid] = useState(true), [zoom, setZoom] = useState(1);
@@ -46,6 +48,7 @@ export default function App() {
   useEffect(() => {
     function keydown(event) {
       const editing = event.target.matches('input, textarea, select');
+      if (welcomeOpen) return;
       if (event.key === 'Escape' && !exportScene) { replay.exit(); setTool('select'); setPaletteOpen(false); }
       if (!editing && !exportScene && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); replay.exit(); event.shiftKey ? editor.redo() : editor.undo(); }
       if (editing || exportScene || replay.active) return;
@@ -62,7 +65,7 @@ export default function App() {
   });
   const mode = replay.active && replay.mode === 'full' ? replay.progress <= .5 ? '完整演示 · 已行驶' : '完整演示 · 后续动作' : replay.active && replay.mode === 'planned' ? '后续动作预览' : replay.active ? replay.progress >= 1 ? '碰撞时的位置' : replay.progress === 0 ? '碰撞前的位置' : '模拟回放' : '碰撞时的位置';
   return <div className="editor-app">
-    <header className="app-header"><div className="brand"><span className="brand-symbol"><Icon name="logo" size={23} /></span><strong>CrashPad</strong><input className="document-name" id="document-title" aria-label="示意图标题" placeholder="未命名示意图" title="点击编辑示意图标题" maxLength={60} value={editor.scene.title || ''} onFocus={() => replay.exit()} onChange={e => editor.updateText('title', e.target.value)} onBlur={editor.flushText} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div><div className="header-actions"><span id="save-status" className={editor.saved ? 'save-status' : 'save-status error'}>{editor.saved ? '草稿已保存' : '草稿未保存，请及时导出'}</span><button className="button secondary" data-action="new" onClick={newScene}><Icon name="plus" size={15} /><span>新建</span></button><button className="button primary" data-action="preview" onClick={preview}><Icon name="download" size={15} /><span>导出图片</span></button></div></header>
+    <header className="app-header"><div className="brand"><span className="brand-symbol"><Icon name="logo" size={23} /></span><strong>CrashPad</strong><input className="document-name" id="document-title" aria-label="示意图标题" placeholder="未命名示意图" title="点击编辑示意图标题" maxLength={60} value={editor.scene.title || ''} onFocus={() => replay.exit()} onChange={e => editor.updateText('title', e.target.value)} onBlur={editor.flushText} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} /></div><div className="header-actions"><button className="welcome-help" aria-label="使用说明" onClick={() => { replay.exit(); setWelcomeOpen(true); }}>使用说明</button><span id="save-status" className={editor.saved ? 'save-status' : 'save-status error'}>{editor.saved ? '草稿已保存' : '草稿未保存，请及时导出'}</span><button className="button secondary" data-action="new" onClick={newScene}><Icon name="plus" size={15} /><span>新建</span></button><button className="button primary" data-action="preview" onClick={preview}><Icon name="download" size={15} /><span>导出图片</span></button></div></header>
     <main className={`workbench ${paletteOpen ? 'palette-open' : ''}`}>
       <ToolsPanel scene={editor.scene} tool={tool} palette={palette} selected={selected} chooseTool={chooseTool} chooseCar={chooseObject} mutate={mutate} locked={replay.active} />
       <section className="canvas-panel" aria-label="事故示意图编辑区"><div className="canvas-toolbar"><div className="toolbar-history"><button className="icon-button" data-action="undo" aria-label="撤销" title="撤销 Ctrl / ⌘ Z" disabled={!editor.history.canUndo} onClick={() => { replay.exit(); editor.undo(); }}><Icon name="undo" size={17} /></button><button className="icon-button" data-action="redo" aria-label="重做" title="重做 Ctrl / ⌘ Shift Z" disabled={!editor.history.canRedo} onClick={() => { replay.exit(); editor.redo(); }}><Icon name="redo" size={17} /></button><button className="reset-button" data-action="reset" aria-label="重置场景" title="恢复初始场景，可撤销" onClick={() => resetScene()}><Icon name="rotate" size={15} /><span>重置</span></button><span className="toolbar-divider" /><span id="scene-title" title={roadDescription(editor.scene)}>{roadDescription(editor.scene)}</span></div><div className="toolbar-view"><button className="icon-button" data-action="grid" aria-label="显示网格" title="显示网格" aria-pressed={grid} onClick={() => setGrid(!grid)}><Icon name="grid" size={16} /></button><button className="icon-button" aria-label="适应画布" title="适应画布" onClick={() => setZoom(1)}><Icon name="fit" size={16} /></button><select aria-label="画布缩放" value={zoom} onChange={e => setZoom(Number(e.target.value))}><option value="0.75">75%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></div></div>
@@ -72,6 +75,7 @@ export default function App() {
       <PropertiesPanel deleteParticipant={deleteParticipant} previewFull={() => { editor.flushText(); setTool('select'); replay.startFull(); }} previewPlan={() => { editor.flushText(); setTool('select'); replay.startPlanned(); }} editor={editor} selected={selected} tab={tab} setTab={changeTab} locked={replay.active} mutate={mutate} />
     </main>
     <footer className="status-bar"><span id="canvas-hint">{replay.active ? '回放中 · 返回编辑后可调整对象' : tool === 'collision' ? '点击画布标记碰撞位置' : '拖动参与者调整位置 · 圆点调整路线'}</span><span>草稿保存在当前浏览器 · 距离为示意</span></footer>
+    <WelcomeDialog open={welcomeOpen} onClose={() => setWelcomeOpen(false)} />
     <ExportDialog scene={exportScene} onClose={() => setExportScene(null)} notify={notify} />
     <div id="toast" className={message ? 'visible' : ''} role="status" aria-live="polite">{message}</div>
   </div>;

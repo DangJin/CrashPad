@@ -16,6 +16,7 @@ const paths = {
   grid: 'M3 3h18v18H3Zm6 0v18m6-18v18M3 9h18M3 15h18',
   fit: 'M3 9V3h6m6 0h6v6m0 6v6h-6m-6 0H3v-6',
   rotate: 'M4 9a8 8 0 1 1 1 9M4 3v6h6',
+  trash: 'M4 7h16M9 7V3h6v4M6 7l1 14h10l1-14M10 11v6m4-6v6',
   plus: 'M12 5v14M5 12h14', close: 'm6 6 12 12M6 18 18 6',
 };
 export default function Icon({ name, size = 18 }) {

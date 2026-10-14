@@ -64,9 +64,18 @@ export function participantExportName(participant) {
   const name = participantName(participant), type = participantType(participant);
   return type === 'car' || name === PARTICIPANT_TYPES[type] ? name : `${name}（${PARTICIPANT_TYPES[type]}）`;
 }
-export function participantColor(participant) {
+export const PARTICIPANT_COLORS = { '#ffffff': '白色', '#25364e': '黑色', '#a3adba': '银灰', '#d94343': '红色', '#245bdb': '蓝色', '#23845f': '绿色', '#e8b638': '黄色', '#db6a31': '橙色' };
+export const validParticipantColor = color => typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color);
+export function participantPaintColor(participant) {
+  if (validParticipantColor(participant.color)) return participant.color.toLowerCase();
   const palette = ['#23845f', '#8353c5', '#bb4878', '#267f9d', '#a36b16', '#5368bd'];
   return COLORS[participant.id] || palette[Array.from(participant.id).reduce((sum, char) => sum + char.charCodeAt(0), 0) % palette.length];
+}
+// Light paint stays true on the body; its route and labels use a darker shade.
+export function participantColor(participant) {
+  const color = participantPaintColor(participant), rgb = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16));
+  const luminance = rgb.reduce((sum, value, i) => sum + value * [.2126, .7152, .0722][i], 0);
+  return luminance > 165 ? '#' + rgb.map(value => Math.round(value * .52).toString(16).padStart(2, '0')).join('') : color;
 }
 export function addParticipant(scene, type) {
   if (!Object.hasOwn(PARTICIPANT_TYPES, type)) return scene;
@@ -112,7 +121,7 @@ export function restoreScene(raw) {
     const point = p => p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x >= 0 && p.x <= WIDTH && p.y >= 0 && p.y <= HEIGHT;
     const damage = ['', 'front', 'rear', 'left', 'right'];
     if (s.cars.some(c => c?.type === 'pedestrian' && (c.damage !== '' || !['straight', 'left', 'right', 'stopped', 'custom'].includes(c.motion) || c.plan && LATERAL_MOTIONS.includes(c.plan.turn)))) return null;
-    if (!s.cars.every(c => c && typeof c.id === 'string' && /^[A-Z][A-Za-z0-9_-]{0,31}$/.test(c.id) && (c.type === undefined || Object.hasOwn(PARTICIPANT_TYPES, c.type)) && (c.name === undefined || typeof c.name === 'string' && c.name.length <= 20) && point(c) && c.x >= 36 && c.x <= WIDTH - 36 && c.y >= 55 && c.y <= HEIGHT - 55 && Number.isFinite(c.angle) && Object.hasOwn(MOTIONS, c.motion) && damage.includes(c.damage) && (c.start === null || point(c.start)))) return null;
+    if (!s.cars.every(c => c && typeof c.id === 'string' && /^[A-Z][A-Za-z0-9_-]{0,31}$/.test(c.id) && (c.type === undefined || Object.hasOwn(PARTICIPANT_TYPES, c.type)) && (c.name === undefined || typeof c.name === 'string' && c.name.length <= 20) && (c.color === undefined || validParticipantColor(c.color)) && point(c) && c.x >= 36 && c.x <= WIDTH - 36 && c.y >= 55 && c.y <= HEIGHT - 55 && Number.isFinite(c.angle) && Object.hasOwn(MOTIONS, c.motion) && damage.includes(c.damage) && (c.start === null || point(c.start)) && (c.routeBend == null || Number.isFinite(c.routeBend.x) && Number.isFinite(c.routeBend.y) && Math.abs(c.routeBend.x) <= WIDTH * 2 && Math.abs(c.routeBend.y) <= HEIGHT * 2))) return null;
     const localPoint = p => p === null || (p && Number.isFinite(p.x) && Number.isFinite(p.y) && Math.abs(p.x) <= WIDTH * 2 && Math.abs(p.y) <= HEIGHT * 2);
     if (s.cars.some(c => c.plan !== undefined && c.plan !== null && (!Object.hasOwn(PLAN_ACTIONS, c.plan.turn) || !localPoint(c.plan.target) || !localPoint(c.plan.bend) || (c.plan.finalAngle !== undefined && (!Number.isFinite(c.plan.finalAngle) || c.plan.finalAngle < 0 || c.plan.finalAngle >= 360))))) return null;
     if (s.collision !== null && !point(s.collision)) return null;
@@ -136,6 +145,7 @@ export function pathFor(car) {
     const r = car.angle * Math.PI / 180;
     return { x: car.x + x * Math.cos(r) - y * Math.sin(r), y: car.y + x * Math.sin(r) + y * Math.cos(r) };
   };
+  const customControl = car.routeBend ? local(car.routeBend.x, car.routeBend.y) : null;
   let start = local(0, 170), control = local(0, 85);
   if (LATERAL_MOTIONS.includes(car.motion)) {
     const merging = car.motion.startsWith('merge'), left = car.motion.endsWith('Left');
@@ -146,7 +156,7 @@ export function pathFor(car) {
     control = local(merging ? sx * .55 : sx, sy * .55);
     const control2 = local(0, Math.max(35, sy * .3));
     const bound = p => ({ x: clamp(p.x, 15, WIDTH - 15), y: clamp(p.y, 15, HEIGHT - 15) });
-    start = bound(start); control = bound(control);
+    start = bound(start); control = bound(customControl || control);
     return cubicPath(start, control, bound(control2), { x: car.x, y: car.y });
   }
   if (car.motion === 'left') { start = local(-160, 110); control = local(0, 110); }
@@ -166,8 +176,18 @@ export function pathFor(car) {
     } else control = { x: (start.x + car.x) / 2, y: (start.y + car.y) / 2 };
   }
   start = { x: clamp(start.x, 15, WIDTH - 15), y: clamp(start.y, 15, HEIGHT - 15) };
+  control = customControl || control;
   control = { x: clamp(control.x, 15, WIDTH - 15), y: clamp(control.y, 15, HEIGHT - 15) };
   return { start, control, end: { x: car.x, y: car.y }, d: `M ${start.x} ${start.y} Q ${control.x} ${control.y} ${car.x} ${car.y}` };
+}
+// The handle sits on the route midpoint, so dragging it pulls the visible curve.
+export function setRouteBend(car, point) {
+  const path = pathFor(car);
+  if (!path) return car;
+  const midpoint = samplePath(path, .5), weight = path.control2 ? .375 : .5;
+  const control = { x: clamp(path.control.x + (point.x - midpoint.x) / weight, 15, WIDTH - 15), y: clamp(path.control.y + (point.y - midpoint.y) / weight, 15, HEIGHT - 15) };
+  const r = -car.angle * Math.PI / 180, dx = control.x - car.x, dy = control.y - car.y;
+  return { ...car, routeBend: { x: dx * Math.cos(r) - dy * Math.sin(r), y: dx * Math.sin(r) + dy * Math.cos(r) } };
 }
 function cubicPath(start, control, control2, end) {
   return { start, control, control2, end, d: `M ${start.x} ${start.y} C ${control.x} ${control.y} ${control2.x} ${control2.y} ${end.x} ${end.y}` };
@@ -192,10 +212,10 @@ export function incomingHeading(car) {
   return normalizeAngle(car.angle - turnDelta(car.motion));
 }
 export function withIncomingHeading(car, heading) {
-  return { ...car, angle: normalizeAngle(heading + turnDelta(car.motion)), start: null };
+  return { ...car, angle: normalizeAngle(heading + turnDelta(car.motion)), start: null, routeBend: null };
 }
 export function withMotion(car, motion) {
-  if (motion === 'stopped') return { ...car, motion, start: null };
+  if (motion === 'stopped') return { ...car, motion, start: null, routeBend: null };
   return withIncomingHeading({ ...car, motion }, incomingHeading(car));
 }
 // Planned intent starts in front of the current pose. It never changes the actual route.

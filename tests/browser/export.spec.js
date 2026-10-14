@@ -7,7 +7,7 @@ test('social ratios preview and download exact PNG and JPG dimensions', async ({
   const before = await page.evaluate(() => localStorage.getItem('crashpad:draft:v1'));
   await page.locator('.app-header [data-action="preview"]').click();
   for (const [preset, width, height] of [['xiaohongshu', 1080, 1440], ['douyin', 1080, 1920], ['square', 1080, 1080], ['widescreen', 1920, 1080]]) {
-    await page.locator('#export-ratio').selectOption(preset);
+    await page.locator('#export-ratio').locator('[data-value="' + preset + '"]').click();
     await expect(page.locator('#export-dimensions')).toHaveText(`${width} × ${height} px`);
     await expect(page.locator('#preview-image > svg')).toHaveAttribute('viewBox', `0 0 ${width} ${height}`);
     if (['xiaohongshu', 'douyin'].includes(preset)) {
@@ -21,9 +21,9 @@ test('social ratios preview and download exact PNG and JPG dimensions', async ({
     expect([...bytes.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
     expect(bytes.readUInt32BE(16)).toBe(width); expect(bytes.readUInt32BE(20)).toBe(height);
   }
-  await page.locator('#export-ratio').selectOption('douyin');
-  await page.locator('#export-format').selectOption('jpg');
-  await page.locator('#export-quality').selectOption('2');
+  await page.locator('#export-ratio').locator('[data-value="' + 'douyin' + '"]').click();
+  await page.locator('#export-format').locator('[data-value="' + 'jpg' + '"]').click();
+  await page.locator('#export-quality').locator('[data-value="' + '2' + '"]').click();
   await expect(page.locator('#export-dimensions')).toHaveText('2160 × 3840 px');
   const event = page.waitForEvent('download'); await page.locator('#download').click();
   const download = await event, file = testInfo.outputPath('douyin.jpg'); await download.saveAs(file);
@@ -50,7 +50,7 @@ test('portrait typography keeps long descriptions and vehicle plans inside the p
   await page.goto('/');
   await page.locator('.app-header [data-action="preview"]').click();
   for (const preset of ['xiaohongshu', 'douyin']) {
-    await page.locator('#export-ratio').selectOption(preset);
+    await page.locator('#export-ratio').locator('[data-value="' + preset + '"]').click();
     const overflow = await page.locator('#preview-image > svg').evaluate(svg => {
       const bounds = svg.getBoundingClientRect();
       return [...svg.querySelectorAll('[data-export-text]')].filter(node => {
