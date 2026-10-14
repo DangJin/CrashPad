@@ -33,11 +33,13 @@ export function useEditor() {
     flushText(); const next = clone(sceneRef.current); fn(next); replace(next, true);
   }, [flushText, replace]);
   const updateCar = useCallback((id, fn) => mutate(s => { s.cars = s.cars.map(c => c.id === id ? fn(c) : c); }), [mutate]);
-  const updateText = useCallback((field, value) => {
-    replace({ ...sceneRef.current, [field]: value });
+  const queueText = useCallback(next => {
+    replace(next);
     clearTimeout(textTimer.current);
     textTimer.current = setTimeout(() => { textTimer.current = null; commit(); }, 650);
   }, [replace, commit]);
+  const updateText = useCallback((field, value) => queueText({ ...sceneRef.current, [field]: value }), [queueText]);
+  const updateParticipantText = useCallback((id, field, value) => queueText({ ...sceneRef.current, cars: sceneRef.current.cars.map(c => c.id === id ? { ...c, [field]: value } : c) }), [queueText]);
   const undo = useCallback(() => { flushText(); replace(historyRef.current.undo()); refreshHistory(v => v + 1); }, [flushText, replace]);
   const redo = useCallback(() => { flushText(); replace(historyRef.current.redo()); refreshHistory(v => v + 1); }, [flushText, replace]);
   useEffect(() => { save(); }, [scene, save]);
@@ -45,5 +47,5 @@ export function useEditor() {
     window.addEventListener('pagehide', save);
     return () => { window.removeEventListener('pagehide', save); clearTimeout(textTimer.current); };
   }, [save]);
-  return { scene, sceneRef, replace, commit, mutate, updateCar, updateText, flushText, undo, redo, saved, history: historyRef.current };
+  return { scene, sceneRef, replace, commit, mutate, updateCar, updateText, updateParticipantText, flushText, undo, redo, saved, history: historyRef.current };
 }

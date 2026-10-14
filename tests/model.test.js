@@ -7,7 +7,7 @@ test('draft round trip and corrupt draft recovery', () => {
   const s = createScene();
   assert.deepEqual(restoreScene(JSON.stringify(s)), s);
   for (const raw of ['{', 'null', '{}', '{"version":2}']) assert.equal(restoreScene(raw), null);
-  for (const invalid of [ { road: '__proto__' }, { lanes: 0 }, { lanes: 9 }, { note: '<'.repeat(501) }, { cars: [] }, { collision: { x: Infinity, y: 0 } } ]) assert.equal(restoreScene({ ...s, ...invalid }), null);
+  for (const invalid of [ { road: '__proto__' }, { lanes: 0 }, { lanes: 9 }, { note: '<'.repeat(501) }, { collision: { x: Infinity, y: 0 } } ]) assert.equal(restoreScene({ ...s, ...invalid }), null);
   s.cars[0].x = -50;
   assert.equal(restoreScene(s), null);
 });

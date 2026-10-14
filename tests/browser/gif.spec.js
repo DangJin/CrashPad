@@ -1,8 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { createScene, addParticipant } from '../../src/model.js';
 import { readFile } from 'node:fs/promises';
 
 test('GIF export contains a looping complete animation at the selected portrait ratio', async ({ page }, testInfo) => {
   test.setTimeout(60000);
+  let scene = createScene();
+  for (const type of ['pedestrian', 'ebike', 'bicycle']) scene = addParticipant(scene, type);
+  await page.addInitScript(scene => localStorage.setItem('crashpad:draft:v1', JSON.stringify(scene)), scene);
   await page.goto('/');
   await page.locator('[data-plan="changeRight"]').click();
   const before = await page.evaluate(() => localStorage.getItem('crashpad:draft:v1'));

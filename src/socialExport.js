@@ -1,4 +1,4 @@
-import { COLORS, MOTIONS, planLabel, roadDescription } from './model.js';
+import { MOTIONS, planLabel, roadDescription, participantName, participantColor, participantExportName } from './model.js';
 import { escapeXml, sceneMarkup, sceneTitle } from './scene.js';
 
 function wrap(text, count) {
@@ -28,9 +28,11 @@ export function socialExportSvg(scene, preset, sceneOptions = {}) {
     ...(car.plan ? [`后续：计划${planLabel(car.plan)}（未发生）`] : []),
     ...(car.damage ? [`受损：${damageNames[car.damage]}`] : []),
   ].flatMap(line => wrap(line, Math.floor((cardWidth - 48) / bodySize))));
-  const cardHeights = cards.map(lines => 84 + lines.length * (bodySize + 12));
-  const cardHeight = Math.max(...cardHeights);
-  const cardsHeight = tall ? cardHeights.reduce((sum, height) => sum + height, 20) : cardHeight;
+  const cardTitles = scene.cars.map(car => wrap(`${car.id}  ${participantExportName(car)}`, Math.floor((cardWidth - 48) / 36) - 1));
+  const cardHeights = cards.map((lines, i) => 84 + (cardTitles[i].length - 1) * 44 + lines.length * (bodySize + 12));
+  const columns = tall ? 1 : 2, rowHeights = [];
+  cardHeights.forEach((height, i) => { const row = Math.floor(i / columns); rowHeights[row] = Math.max(rowHeights[row] || 0, height); });
+  const cardsHeight = rowHeights.reduce((sum, height) => sum + height, 0) + Math.max(0, rowHeights.length - 1) * 20;
   const headerHeight = (tall ? 264 : 230) + titleOffset + (metadata.length - 1) * 36;
   const noteHeight = noteLines.length ? 66 + noteLines.length * (noteSize + 12) : 0;
   const footerHeight = tall ? 160 : 100;
@@ -45,10 +47,10 @@ export function socialExportSvg(scene, preset, sceneOptions = {}) {
   markup += `<rect x="${margin}" y="${y}" width="${contentWidth}" height="${diagramHeight}" rx="18" fill="#f4f6fa"/><svg data-social-canvas="true" x="${margin}" y="${y}" width="${contentWidth}" height="${diagramHeight}" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet">${sceneMarkup(scene, { grid: false, ...sceneOptions, hideUnknownSignals: true })}</svg>`;
   y += diagramHeight + 28;
   scene.cars.forEach((car, i) => {
-    const x = tall ? margin : margin + i * (cardWidth + 24), cardY = tall ? y + (i ? cardHeights[0] + 20 : 0) : y;
-    markup += `<rect x="${x}" y="${cardY}" width="${cardWidth}" height="${tall ? cardHeights[i] : cardHeight}" rx="14" fill="${COLORS[car.id]}" fill-opacity=".055"/>`;
-    markup += text(`${car.id}  ${i === 0 ? '我的车' : '对方车辆'}`, x + 24, cardY + 48, 36, COLORS[car.id], 700);
-    cards[i].forEach((line, index) => { markup += text(line, x + 24, cardY + 94 + index * (bodySize + 12), bodySize); });
+    const row = Math.floor(i / columns), x = margin + (i % columns) * (cardWidth + 24), cardY = y + rowHeights.slice(0, row).reduce((sum, height) => sum + height + 20, 0);
+    markup += `<rect x="${x}" y="${cardY}" width="${cardWidth}" height="${rowHeights[row]}" rx="14" fill="${participantColor(car)}" fill-opacity=".055"/>`;
+    cardTitles[i].forEach((line, index) => { markup += text(line, x + 24, cardY + 48 + index * 44, 36, participantColor(car), 700); });
+    cards[i].forEach((line, index) => { markup += text(line, x + 24, cardY + 94 + (cardTitles[i].length - 1) * 44 + index * (bodySize + 12), bodySize); });
   });
   y += cardsHeight + 36;
   if (noteLines.length) markup += text('现场说明', margin, y + 34, 32, '#1f3049', 700);

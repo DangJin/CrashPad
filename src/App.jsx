@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { createScene, clone, clamp, moveCar, roadDescription, COLORS } from './model.js';
+import { createScene, clone, clamp, moveCar, roadDescription, participantName, participantColor } from './model.js';
 import { useEditor } from './hooks/useEditor.js';
 import { useReplay } from './hooks/useReplay.js';
 import Icon from './components/Icon.jsx';
@@ -12,7 +12,7 @@ import ExportDialog from './components/ExportDialog.jsx';
 
 export default function App() {
   const editor = useEditor(), replay = useReplay();
-  const [selected, setSelected] = useState('A'), [tool, setTool] = useState('select');
+  const [selected, setSelected] = useState(() => editor.scene.cars[0]?.id || 'road'), [tool, setTool] = useState('select');
   const [palette, setPalette] = useState('road'), [tab, setTab] = useState('properties');
   const [grid, setGrid] = useState(true), [zoom, setZoom] = useState(1);
   const [paletteOpen, setPaletteOpen] = useState(false), [exportScene, setExportScene] = useState(null);
@@ -21,6 +21,7 @@ export default function App() {
   useEffect(() => () => clearTimeout(toastTimer.current), []);
   function mutate(fn) { replay.exit(); editor.mutate(fn); }
   function chooseObject(id) { editor.flushText(); replay.exit(); setSelected(id); setTab('properties'); setTool('select'); setPalette(id === 'road' ? 'road' : 'cars'); setPaletteOpen(false); }
+  function deleteParticipant(id) { mutate(s => { s.cars = s.cars.filter(c => c.id !== id); }); setSelected('road'); setPalette('cars'); }
   function chooseTool(id) {
     editor.flushText(); replay.exit();
     setTool(id === 'collision' ? 'collision' : 'select');
@@ -65,12 +66,12 @@ export default function App() {
     <main className={`workbench ${paletteOpen ? 'palette-open' : ''}`}>
       <ToolsPanel scene={editor.scene} tool={tool} palette={palette} selected={selected} chooseTool={chooseTool} chooseCar={chooseObject} mutate={mutate} locked={replay.active} />
       <section className="canvas-panel" aria-label="事故示意图编辑区"><div className="canvas-toolbar"><div className="toolbar-history"><button className="icon-button" data-action="undo" aria-label="撤销" title="撤销 Ctrl / ⌘ Z" disabled={!editor.history.canUndo} onClick={() => { replay.exit(); editor.undo(); }}><Icon name="undo" size={17} /></button><button className="icon-button" data-action="redo" aria-label="重做" title="重做 Ctrl / ⌘ Shift Z" disabled={!editor.history.canRedo} onClick={() => { replay.exit(); editor.redo(); }}><Icon name="redo" size={17} /></button><button className="reset-button" data-action="reset" aria-label="重置场景" title="恢复初始场景，可撤销" onClick={() => resetScene()}><Icon name="rotate" size={15} /><span>重置</span></button><span className="toolbar-divider" /><span id="scene-title" title={roadDescription(editor.scene)}>{roadDescription(editor.scene)}</span></div><div className="toolbar-view"><button className="icon-button" data-action="grid" aria-label="显示网格" title="显示网格" aria-pressed={grid} onClick={() => setGrid(!grid)}><Icon name="grid" size={16} /></button><button className="icon-button" aria-label="适应画布" title="适应画布" onClick={() => setZoom(1)}><Icon name="fit" size={16} /></button><select aria-label="画布缩放" value={zoom} onChange={e => setZoom(Number(e.target.value))}><option value="0.75">75%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></div></div>
-        <div className="canvas-area"><span className="canvas-state">{mode}</span><SceneCanvas editor={editor} selected={selected} chooseCar={chooseObject} chooseSignal={direction => chooseObject(`signal:${direction}`)} chooseRoad={() => chooseObject('road')} clearSelection={() => setSelected(null)} tool={tool} setTool={setTool} replay={replay} grid={grid} zoom={zoom} notify={notify} /><div className="canvas-legend"><span><i style={{ background: COLORS.A }} />A 我的车</span><span><i style={{ background: COLORS.B }} />B 对方车辆</span><span className="route-legend"><i />已行驶</span><span className="plan-legend"><i />计划</span></div>{editor.scene.collision && <button className="collision-clear text-button" data-action="remove-collision" onClick={() => mutate(s => { s.collision = null; })}>移除碰撞点</button>}</div>
+        <div className="canvas-area"><span className="canvas-state">{mode}</span><SceneCanvas editor={editor} selected={selected} chooseCar={chooseObject} chooseSignal={direction => chooseObject(`signal:${direction}`)} chooseRoad={() => chooseObject('road')} clearSelection={() => setSelected(null)} tool={tool} setTool={setTool} replay={replay} grid={grid} zoom={zoom} notify={notify} /><div className="canvas-legend">{editor.scene.cars.map(c => <span key={c.id}><i style={{ background: participantColor(c) }} />{c.id} {participantName(c)}</span>)}<span className="route-legend"><i />已行驶</span><span className="plan-legend"><i />计划</span></div>{editor.scene.collision && <button className="collision-clear text-button" data-action="remove-collision" onClick={() => mutate(s => { s.collision = null; })}>移除碰撞点</button>}</div>
         <ReplayBar scene={editor.scene} replay={replay} flushText={editor.flushText} setTool={setTool} />
       </section>
-      <PropertiesPanel previewFull={() => { editor.flushText(); setTool('select'); replay.startFull(); }} previewPlan={() => { editor.flushText(); setTool('select'); replay.startPlanned(); }} editor={editor} selected={selected} tab={tab} setTab={changeTab} locked={replay.active} mutate={mutate} />
+      <PropertiesPanel deleteParticipant={deleteParticipant} previewFull={() => { editor.flushText(); setTool('select'); replay.startFull(); }} previewPlan={() => { editor.flushText(); setTool('select'); replay.startPlanned(); }} editor={editor} selected={selected} tab={tab} setTab={changeTab} locked={replay.active} mutate={mutate} />
     </main>
-    <footer className="status-bar"><span id="canvas-hint">{replay.active ? '回放中 · 返回编辑后可调整对象' : tool === 'collision' ? '点击画布标记碰撞位置' : '拖动车辆调整位置 · 圆点调整路线'}</span><span>草稿保存在当前浏览器 · 距离为示意</span></footer>
+    <footer className="status-bar"><span id="canvas-hint">{replay.active ? '回放中 · 返回编辑后可调整对象' : tool === 'collision' ? '点击画布标记碰撞位置' : '拖动参与者调整位置 · 圆点调整路线'}</span><span>草稿保存在当前浏览器 · 距离为示意</span></footer>
     <ExportDialog scene={exportScene} onClose={() => setExportScene(null)} notify={notify} />
     <div id="toast" className={message ? 'visible' : ''} role="status" aria-live="polite">{message}</div>
   </div>;
