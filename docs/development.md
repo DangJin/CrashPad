@@ -72,3 +72,5 @@ node scripts/capture-readme.mjs
 ```
 
 脚本使用隔离的虚构演示草稿，不读取或覆盖当前浏览器的现场数据。输出位于 `docs/images/`，包括桌面工作台、信号灯属性、导出预览及移动端界面。默认复用 `http://127.0.0.1:5173`，可通过 `CRASH_PAD_URL` 指定地址；脚本不会启动或停止开发服务。
+
+多参与者界面截图由 `tests/browser/participants.spec.js` 生成，保存在 `test-results/`。需要更新 README 展示图时，将桌面项目的 `participants.png` 复制到 `docs/images/participants.png`。

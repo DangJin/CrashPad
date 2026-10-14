@@ -55,6 +55,38 @@ export function createPlan(car, action, scene) {
   return plan;
 }
 export const COLORS = { A: '#245bdb', B: '#db6a31' };
+export const PARTICIPANT_TYPES = { car: '汽车', pedestrian: '行人', ebike: '电动车', bicycle: '自行车' };
+export const participantType = participant => participant.type || 'car';
+export function participantName(participant) {
+  return participant.name?.trim() || (participantType(participant) === 'car' && ['A', 'B'].includes(participant.id) ? participant.id === 'A' ? '我的车' : '对方车辆' : PARTICIPANT_TYPES[participantType(participant)]);
+}
+export function participantExportName(participant) {
+  const name = participantName(participant), type = participantType(participant);
+  return type === 'car' || name === PARTICIPANT_TYPES[type] ? name : `${name}（${PARTICIPANT_TYPES[type]}）`;
+}
+export function participantColor(participant) {
+  const palette = ['#23845f', '#8353c5', '#bb4878', '#267f9d', '#a36b16', '#5368bd'];
+  return COLORS[participant.id] || palette[Array.from(participant.id).reduce((sum, char) => sum + char.charCodeAt(0), 0) % palette.length];
+}
+export function addParticipant(scene, type) {
+  if (!Object.hasOwn(PARTICIPANT_TYPES, type)) return scene;
+  const used = new Set(scene.cars.map(p => p.id));
+  let number = 0;
+  const idAt = i => i < 26 ? String.fromCharCode(65 + i) : `P${i + 1}`;
+  while (used.has(idAt(number))) number++;
+  const participant = { id: idAt(number), type, x: 300 + (number % 4) * 65, y: 350 + (Math.floor(number / 4) % 3) * 60, angle: 0, motion: 'straight', damage: '', start: null };
+  return { ...scene, cars: [...scene.cars, participant] };
+}
+export function withParticipantType(participant, type) {
+  if (!Object.hasOwn(PARTICIPANT_TYPES, type)) return participant;
+  const next = { ...participant, type };
+  if (type === 'pedestrian') {
+    next.damage = '';
+    if (LATERAL_MOTIONS.includes(next.motion) || next.motion === 'change') { next.motion = 'straight'; next.start = null; }
+    if (next.plan && LATERAL_MOTIONS.includes(next.plan.turn)) next.plan = null;
+  }
+  return next;
+}
 export const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 export const clone = value => JSON.parse(JSON.stringify(value));
 export function createScene() {
@@ -76,10 +108,11 @@ export function restoreScene(raw) {
       if (s.road === 'laneDrop' && o.afterLanes >= s.lanes || s.road === 'laneAdd' && o.afterLanes <= s.lanes) return null;
     }
     if (s.road === 'laneDrop' && s.lanes < 2 || s.road === 'laneAdd' && s.lanes > 5) return null;
-    if (!Array.isArray(s.cars) || s.cars.length !== 2) return null;
+    if (!Array.isArray(s.cars) || new Set(s.cars.map(c => c?.id)).size !== s.cars.length) return null;
     const point = p => p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x >= 0 && p.x <= WIDTH && p.y >= 0 && p.y <= HEIGHT;
     const damage = ['', 'front', 'rear', 'left', 'right'];
-    if (!s.cars.every((c, i) => c.id === ['A', 'B'][i] && point(c) && c.x >= 36 && c.x <= WIDTH - 36 && c.y >= 55 && c.y <= HEIGHT - 55 && Number.isFinite(c.angle) && Object.hasOwn(MOTIONS, c.motion) && damage.includes(c.damage) && (c.start === null || point(c.start)))) return null;
+    if (s.cars.some(c => c?.type === 'pedestrian' && (c.damage !== '' || !['straight', 'left', 'right', 'stopped', 'custom'].includes(c.motion) || c.plan && LATERAL_MOTIONS.includes(c.plan.turn)))) return null;
+    if (!s.cars.every(c => c && typeof c.id === 'string' && /^[A-Z][A-Za-z0-9_-]{0,31}$/.test(c.id) && (c.type === undefined || Object.hasOwn(PARTICIPANT_TYPES, c.type)) && (c.name === undefined || typeof c.name === 'string' && c.name.length <= 20) && point(c) && c.x >= 36 && c.x <= WIDTH - 36 && c.y >= 55 && c.y <= HEIGHT - 55 && Number.isFinite(c.angle) && Object.hasOwn(MOTIONS, c.motion) && damage.includes(c.damage) && (c.start === null || point(c.start)))) return null;
     const localPoint = p => p === null || (p && Number.isFinite(p.x) && Number.isFinite(p.y) && Math.abs(p.x) <= WIDTH * 2 && Math.abs(p.y) <= HEIGHT * 2);
     if (s.cars.some(c => c.plan !== undefined && c.plan !== null && (!Object.hasOwn(PLAN_ACTIONS, c.plan.turn) || !localPoint(c.plan.target) || !localPoint(c.plan.bend) || (c.plan.finalAngle !== undefined && (!Number.isFinite(c.plan.finalAngle) || c.plan.finalAngle < 0 || c.plan.finalAngle >= 360))))) return null;
     if (s.collision !== null && !point(s.collision)) return null;
@@ -201,7 +234,7 @@ export function setPlanPoint(car, key, point) {
   const r = -car.angle * Math.PI / 180, dx = point.x - car.x, dy = point.y - car.y;
   const local = { x: dx * Math.cos(r) - dy * Math.sin(r), y: dx * Math.sin(r) + dy * Math.cos(r) };
   const plan = { ...car.plan, [key]: local };
-  if (key === 'target' && plan.turn === 'straight' && Math.abs(local.x) > 12 && local.y < -65) {
+  if (participantType(car) !== 'pedestrian' && key === 'target' && plan.turn === 'straight' && Math.abs(local.x) > 12 && local.y < -65) {
     plan.turn = local.x > 0 ? 'changeRight' : 'changeLeft';
     plan.bend = null;
   }

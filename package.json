@@ -7,7 +7,7 @@
     "dev": "vite",
     "test": "node --test tests/*.test.js",
     "test:browser": "playwright test",
-    "check": "node --check src/model.js && node --check src/roads.js && node --check src/scene.js && node --check src/export.js && node --check src/hooks/useEditor.js && node --check src/hooks/useReplay.js",
+    "check": "node --check src/model.js && node --check src/participants.js && node --check src/roads.js && node --check src/scene.js && node --check src/export.js && node --check src/hooks/useEditor.js && node --check src/hooks/useReplay.js",
     "build": "vite build",
     "preview": "vite preview"
   },
