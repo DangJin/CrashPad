@@ -54,7 +54,7 @@ test('mixed actors animate and remain visible with separate labels in portrait e
   expect(await page.locator('#scene [data-car-id="C"]').getAttribute('transform')).not.toBe(`translate(${scene.cars[2].x} ${scene.cars[2].y})`);
   await page.locator('.app-header [data-action="preview"]').click();
   for (const preset of ['original', 'xiaohongshu', 'douyin']) {
-    await page.locator('#export-ratio').selectOption(preset);
+    await page.locator('#export-ratio').locator('[data-value="' + preset + '"]').click();
     await expect(page.locator('#preview-image [data-car-id]')).toHaveCount(5);
     const text = await page.locator('#preview-image').textContent();
     for (const name of ['行人', '电动车', '自行车']) expect(text).toContain(name);

@@ -30,7 +30,7 @@ try {
   await page.locator('#scene [data-signal-direction="east"]').click();
   await page.screenshot({ path: `${output}/traffic-lights.png` });
   await page.locator('.app-header [data-action="preview"]').click();
-  await page.locator('#export-ratio').selectOption('xiaohongshu');
+  await page.locator('#export-ratio').locator('[data-value="' + 'xiaohongshu' + '"]').click();
   await page.screenshot({ path: `${output}/export-preview.png` });
   const mobile = await open({ ...devices['Pixel 7'], deviceScaleFactor: 1 });
   await mobile.screenshot({ path: `${output}/mobile.png`, fullPage: true });

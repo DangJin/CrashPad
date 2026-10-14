@@ -40,7 +40,7 @@ export function socialExportSvg(scene, preset, sceneOptions = {}) {
   const totalHeight = headerHeight + diagramHeight + cardsHeight + noteHeight + footerHeight + 92;
   // Exceptionally long metadata still fits without silently dropping text.
   const fit = Math.min(1, height / totalHeight);
-  let markup = text('CrashPad / 事故现场记录', margin, tall ? 66 : 50, 22, '#65748a', 500);
+  let markup = text('CrashPad / 车友现场分享', margin, tall ? 66 : 50, 22, '#65748a', 500);
   titleLines.forEach((line, i) => { markup += text(line, margin, (tall ? 158 : 132) + i * (titleSize + 12), titleSize, '#1f3049', 700); });
   metadata.forEach((line, i) => { markup += text(line, margin, (tall ? 228 : 198) + titleOffset + i * 36, 28, '#65748a'); });
   let y = headerHeight;

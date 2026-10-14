@@ -149,5 +149,5 @@ test('document titles persist while older untitled drafts remain compatible', ()
   assert.equal(restoreScene({ ...scene, title: '字'.repeat(61) }), null);
   const exported = exportSvg({ ...scene, title: '<路口> & 双车事故' });
   assert.ok(exported.includes('&lt;路口&gt; &amp; 双车事故'));
-  assert.ok(exportSvg({ ...scene, title: '   ' }).includes('事故示意图'));
+  assert.ok(exportSvg({ ...scene, title: '   ' }).includes('当时是这么回事，大家给评评理'));
 });

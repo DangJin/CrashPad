@@ -1,7 +1,10 @@
 import { roadConfig, DIRECTIONS } from './model.js';
 
 const rotations = { north: 0, east: 90, south: 180, west: 270 };
-const stroke = '#c7cfd8', surface = '#e3e7ec';
+export function roadSurfaceDefs() {
+  return `<defs><pattern id="asphalt" width="48" height="48" patternUnits="userSpaceOnUse"><rect width="48" height="48" fill="#555c62"/><path d="M3 8h2m12-4h1m15 8h2m-27 9h1m13 4h2m16-3h1m-34 16h2m17 5h1m15-7h2" stroke="#a8adb0" stroke-opacity=".22" stroke-width="1"/><path d="M8 3h2m18 5h2m-16 9h2m23 0h2M3 30h2m13 4h2m14 9h2" stroke="#252d33" stroke-opacity=".22" stroke-width="1.2"/></pattern></defs>`;
+}
+const stroke = '#c8c9be', surface = 'url(#asphalt)';
 const roadPath = d => `<path d="${d}" fill="${surface}" stroke="${stroke}" stroke-width="3"/>`;
 const dashed = d => `<path d="${d}" fill="none" stroke="white" stroke-width="3" stroke-dasharray="18 18"/>`;
 const flow = (x, y, angle = 0) => `<path d="M0 15V-12M-6 -6L0 -12L6 -6" transform="translate(${x} ${y}) rotate(${angle})" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
@@ -41,5 +44,5 @@ export function specialRoadMarkup(road, lanes, rawOptions = {}) {
     if (options.side === 'left') { geometry = `<g transform="translate(800 0) scale(-1 1)">${geometry}</g>`; arrows = `<g transform="translate(800 0) scale(-1 1)">${arrows}</g>`; }
   }
   const angle = Object.hasOwn(DIRECTIONS, options.direction) ? rotations[options.direction] : 0;
-  return `<defs><clipPath id="road-frame-${road}"><rect width="800" height="600"/></clipPath></defs><g clip-path="url(#road-frame-${road})"><g data-road-type="${road}" transform="rotate(${angle} 400 300)">${geometry}${arrows}</g></g>`;
+  return `${roadSurfaceDefs()}<defs><clipPath id="road-frame-${road}"><rect width="800" height="600"/></clipPath></defs><g clip-path="url(#road-frame-${road})"><g data-road-type="${road}" transform="rotate(${angle} 400 300)">${geometry}${arrows}</g></g>`;
 }
