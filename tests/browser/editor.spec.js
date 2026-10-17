@@ -1,3 +1,4 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
@@ -14,7 +15,7 @@ async function dragAt(page, from, to) {
   await page.mouse.move(a.x, a.y); await page.mouse.down();
   await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up();
 }
-test.beforeEach(async ({ page }) => { await page.goto('/'); });
+test.beforeEach(async ({ page }) => { await page.goto('/'); await openInspector(page); });
 
 test('road controls persist and undo/redo work', async ({ page }) => {
   if (page.viewportSize().width <= 860) await page.locator('.tool-rail [data-tool="road"]').click();
@@ -22,10 +23,10 @@ test('road controls persist and undo/redo work', async ({ page }) => {
   await page.getByRole('button', { name: '十字路口', exact: true }).click();
   await page.locator('[data-lanes="3"]').click();
   expect((await draft(page)).road).toBe('cross');
-  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  await page.getByRole('button', { name: '撤销编辑', exact: true }).click();
   expect((await draft(page)).lanes).toBe(2);
-  await page.getByRole('button', { name: '重做', exact: true }).click();
-  await page.reload();
+  await page.getByRole('button', { name: '重做编辑', exact: true }).click();
+  await page.reload(); await openInspector(page);
   await page.locator('.tool-rail [data-tool="road"]').click();
   await expect(page.locator('[data-lanes="3"]')).toHaveAttribute('aria-pressed', 'true');
   expect(errors).toEqual([]);
@@ -36,7 +37,7 @@ test('dragging vehicles, custom path, rotation and stopped state', async ({ page
   expect((await draft(page)).cars[0].y).toBeCloseTo(315, 0);
   await page.locator('[data-rotate="45"]').click();
   expect((await draft(page)).cars[0].angle).toBe(45);
-  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  await page.getByRole('button', { name: '撤销编辑', exact: true }).click();
   await dragAt(page, [390, 485], [300, 480]);
   expect((await draft(page)).cars[0].motion).toBe('custom');
   await page.locator('[data-motion="stopped"]').click();
@@ -54,11 +55,11 @@ test('collision, damage and notes survive reload and export as a valid PNG', asy
   await page.getByRole('button', { name: '事故说明', exact: true }).click();
   await page.locator('#note').fill('我直行，对方变道。<现场> & 双方接触。');
   await page.locator('#location').fill('测试路口');
-  await page.reload();
+  await page.reload(); await openInspector(page);
   await page.getByRole('button', { name: '事故说明', exact: true }).click();
   await expect(page.locator('#note')).toHaveValue('我直行，对方变道。<现场> & 双方接触。');
   expect((await draft(page)).cars[0].damage).toBe('left');
-  await page.locator('.app-header [data-action="preview"]').click();
+  await page.locator('.workbench-header [data-action="preview"]').click();
   await expect(page.locator('#preview')).toBeVisible();
   await expect(page.locator('#preview-image')).toContainText('<现场> &');
   const downloaded = page.waitForEvent('download'); await page.locator('#download').click();
@@ -77,13 +78,13 @@ test('responsive layout has no horizontal overflow and keyboard movement works',
 });
 test('broken drafts and unavailable storage remain usable', async ({ page }) => {
   await page.evaluate(() => localStorage.setItem('crashpad:draft:v1', '{broken'));
-  await page.reload(); await expect(page.locator('#scene')).toBeVisible();
+  await page.reload(); await openInspector(page); await expect(page.locator('#scene')).toBeVisible();
   await page.addInitScript(() => { Storage.prototype.setItem = () => { throw new Error('quota'); }; });
-  await page.reload();
-  await expect(page.locator('#save-status')).toContainText('草稿未保存');
+  await page.reload(); await openInspector(page);
+  await expect(page.locator('.workbench-save')).toContainText('草稿未保存');
   if (page.viewportSize().width <= 860) await page.locator('.tool-rail [data-tool="road"]').click();
   await page.getByRole('button', { name: '停车区域', exact: true }).click();
-  await page.locator('.app-header [data-action="preview"]').click();
+  await page.locator('.workbench-header [data-action="preview"]').click();
   await expect(page.locator('#preview')).toBeVisible();
 });
 test('touch gesture moves the car and cancelling a new scene retains the draft', async ({ page, context, isMobile }) => {

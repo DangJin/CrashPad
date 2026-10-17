@@ -1,7 +1,8 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 
 test('junction light colors can be configured, undone, saved and exported', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   if (page.viewportSize().width <= 860) await page.locator('.tool-rail [data-tool="road"]').click();
   await page.locator('[data-road="cross"]').click();
   await expect(page.locator('.tool-content [data-signal]')).toHaveCount(0);
@@ -19,9 +20,9 @@ test('junction light colors can be configured, undone, saved and exported', asyn
   await expect(page.locator('[data-signal="east"][data-state="green"]')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#scene').scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath('junction-signals.png') });
-  await page.reload();
+  await page.reload(); await openInspector(page);
   await expect(page.locator('#scene [data-signal-direction="north"]')).toHaveAttribute('data-signal-state', 'red');
-  await page.locator('.app-header [data-action="preview"]').click();
+  await page.locator('.workbench-header [data-action="preview"]').click();
   for (const preset of ['original', 'xiaohongshu', 'douyin']) {
     await page.locator('#export-ratio').locator('[data-value="' + preset + '"]').click();
     await expect(page.locator('#preview-image [data-signal-direction="east"]')).toHaveAttribute('data-signal-state', 'green');
@@ -41,7 +42,7 @@ test('junction light colors can be configured, undone, saved and exported', asyn
 });
 
 test('road, traffic lights and vehicles share the right property inspector', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   await page.locator('.tool-rail [data-tool="road"]').click();
   await page.locator('[data-road="cross"]').click();
   await expect(page.locator('#controls h2')).toHaveText('十字路口');
@@ -61,7 +62,7 @@ test('road, traffic lights and vehicles share the right property inspector', asy
 });
 
 test('traffic lights rotate for each approach and allow manual orientation in the inspector', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   await page.locator('.tool-rail [data-tool="road"]').click();
   await page.locator('[data-road="cross"]').click();
   await expect(page.locator('#scene [data-signal-direction="east"] [data-signal-angle]')).toHaveAttribute('transform', 'rotate(90)');
@@ -75,9 +76,9 @@ test('traffic lights rotate for each approach and allow manual orientation in th
   await page.locator('#signal-angle').fill('-45');
   await expect(page.locator('#scene [data-signal-direction="east"] [data-signal-angle]')).toHaveAttribute('transform', 'rotate(315)');
   await page.screenshot({ path: testInfo.outputPath('signal-orientation.png'), fullPage: true });
-  await page.reload();
+  await page.reload(); await openInspector(page);
   await expect(page.locator('#scene [data-signal-direction="east"] [data-signal-angle]')).toHaveAttribute('transform', 'rotate(315)');
-  await page.locator('.app-header [data-action="preview"]').click();
+  await page.locator('.workbench-header [data-action="preview"]').click();
   await page.locator('#export-ratio').locator('[data-value="' + 'douyin' + '"]').click();
   await expect(page.locator('#preview-image [data-signal-direction="east"] [data-signal-angle]')).toHaveAttribute('transform', 'rotate(315)');
   await page.locator('#back-edit').click();

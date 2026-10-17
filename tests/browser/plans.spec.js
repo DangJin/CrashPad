@@ -1,3 +1,4 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 
 const car = page => page.evaluate(() => JSON.parse(localStorage.getItem('crashpad:draft:v1')).cars[1]);
@@ -9,7 +10,7 @@ async function dragHandle(page, locator, dx, dy) {
   await page.mouse.move(x + dx, y + dy, { steps: 5 }); await page.mouse.up();
 }
 test('north-facing B can indicate an upcoming left turn without rotating or moving the car', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   if (page.viewportSize().width <= 860) await page.locator('.tool-rail [data-tool="road"]').click();
   await page.locator('[data-road="cross"]').click();
   await page.locator('#scene [data-car="A"]').click();
@@ -35,9 +36,9 @@ test('north-facing B can indicate an upcoming left turn without rotating or movi
   expect((await car(page)).angle).toBe(0);
   await page.screenshot({ path: testInfo.outputPath('planned-left.png'), fullPage: true });
   const saved = await car(page);
-  await page.reload();
+  await page.reload(); await openInspector(page);
   expect((await car(page)).plan).toEqual(saved.plan);
-  await page.locator('.app-header [data-action="preview"]').click();
+  await page.locator('.workbench-header [data-action="preview"]').click();
   await expect(page.locator('#preview-image')).toContainText('计划左转（未发生）');
   await expect(page.locator('#preview-image g[data-plan="B"]')).toBeVisible();
   await expect(page.locator('#preview-image [data-car-id="B"] > g')).toHaveAttribute('transform', 'rotate(0)');

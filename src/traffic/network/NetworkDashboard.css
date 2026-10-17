@@ -1,0 +1,4 @@
+.network-trend .network-trend-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-variant-numeric:tabular-nums}
+.network-trend .network-trend-heading>span:last-child{white-space:nowrap;color:var(--muted)}
+.network-trend svg[role="img"]{display:block;width:100%;height:auto;max-height:110px;min-height:78px;margin-top:4px;color:var(--muted);font-variant-numeric:tabular-nums}
+.network-trend .network-trend-empty{display:flex;align-items:center;min-height:72px;margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.6}

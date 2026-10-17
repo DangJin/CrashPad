@@ -1,3 +1,4 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 import { createScene, withRoad } from '../../src/model.js';
 
@@ -7,9 +8,9 @@ test('reset restores the complete initial state during replay and can be undone'
   changed.collision = { x: 430, y: 350 }; changed.note = '需要恢复的事故经过';
   changed.location = '测试道路'; changed.date = '2026-10-14T10:00';
   await page.addInitScript(scene => { if (!localStorage.getItem('crashpad:draft:v1')) localStorage.setItem('crashpad:draft:v1', JSON.stringify(scene)); }, changed);
-  await page.goto('/');
-  await page.getByRole('combobox', { name: '画布缩放' }).selectOption('1.5');
-  await page.locator('#replay-speed').selectOption('2');
+  await page.goto('/'); await openInspector(page);
+  await page.getByRole('spinbutton', { name: '画布缩放' }).fill('150'); await page.getByRole('spinbutton', { name: '画布缩放' }).press('Enter');
+  await page.getByRole('group', { name: '回放速度', exact: true }).getByRole('button', { name: '2×', exact: true }).click();
   await page.locator('#replay-play').click();
   await expect(page.locator('#controls')).toHaveJSProperty('inert', true);
   await page.getByRole('button', { name: '重置场景', exact: true }).click();
@@ -18,15 +19,15 @@ test('reset restores the complete initial state during replay and can be undone'
   await expect(page.locator('#scene-title')).toHaveText('直路 / 2 车道');
   await expect(page.locator('.inspector-heading h2')).toHaveText('我的车');
   await expect(page.locator('#controls')).toHaveJSProperty('inert', false);
-  await expect(page.getByRole('combobox', { name: '画布缩放' })).toHaveValue('1');
-  await expect(page.locator('#replay-speed')).toHaveValue('1');
+  await expect(page.getByRole('spinbutton', { name: '画布缩放' })).toHaveValue('100');
+  await expect(page.getByRole('group', { name: '回放速度', exact: true }).getByRole('button', { name: '1×', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#replay-time')).toHaveText('0.0 / 4.0 s');
   await expect(page.locator('#scene [data-plan], #scene [data-collision]')).toHaveCount(0);
-  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  await page.getByRole('button', { name: '撤销编辑', exact: true }).click();
   expect(await saved()).toEqual(changed);
-  await page.getByRole('button', { name: '重做', exact: true }).click();
+  await page.getByRole('button', { name: '重做编辑', exact: true }).click();
   expect(await saved()).toEqual(initial);
-  await page.reload();
+  await page.reload(); await openInspector(page);
   expect(await saved()).toEqual(initial);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

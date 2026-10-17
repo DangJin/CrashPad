@@ -1,3 +1,4 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 
 async function openRoads(page) {
@@ -5,7 +6,7 @@ async function openRoads(page) {
 }
 const saved = page => page.evaluate(() => JSON.parse(localStorage.getItem('crashpad:draft:v1')));
 test('ramp templates support side and direction, persist and export without moving vehicles', async ({ page }, testInfo) => {
-  await page.goto('/'); await openRoads(page);
+  await page.goto('/'); await openInspector(page); await openRoads(page);
   const originalCars = (await saved(page)).cars;
   for (const road of ['rampMerge', 'rampExit']) {
     if (!await page.locator(`[data-road="${road}"]`).isVisible()) await openRoads(page);
@@ -17,7 +18,7 @@ test('ramp templates support side and direction, persist and export without movi
     await expect(page.locator('#scene-title')).toContainText('主路 3 车道 / 左侧');
   }
   expect((await saved(page)).cars).toEqual(originalCars);
-  await page.reload(); await openRoads(page);
+  await page.reload(); await openInspector(page); await openRoads(page);
   await expect(page.locator('#road-lanes')).toHaveValue('3');
   await expect(page.locator('[data-road-side="left"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#road-direction')).toHaveValue('east');
@@ -29,7 +30,7 @@ test('ramp templates support side and direction, persist and export without movi
   expect(parsed).toBe(true);
 });
 test('lane counts change independently before and after the taper, with undo and narrow layout', async ({ page }, testInfo) => {
-  await page.goto('/'); await openRoads(page);
+  await page.goto('/'); await openInspector(page); await openRoads(page);
   await page.locator('[data-road="laneDrop"]').click();
   await page.locator('#road-lanes').selectOption('5');
   await page.locator('#road-after-lanes').selectOption('2');
@@ -47,7 +48,7 @@ test('lane counts change independently before and after the taper, with undo and
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
   await page.screenshot({ path: testInfo.outputPath('lane-increase.png'), fullPage: true });
-  await page.reload(); await openRoads(page);
+  await page.reload(); await openInspector(page); await openRoads(page);
   await expect(page.locator('#road-after-lanes')).toHaveValue('4');
   expect((await saved(page)).lanes).toBe(2);
 });

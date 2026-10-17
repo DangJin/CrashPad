@@ -1,8 +1,9 @@
+import { ROAD_MATERIALS } from './roadMaterials.js';
 import { roadConfig, DIRECTIONS } from './model.js';
 
 const rotations = { north: 0, east: 90, south: 180, west: 270 };
 export function roadSurfaceDefs() {
-  return `<defs><pattern id="asphalt" width="48" height="48" patternUnits="userSpaceOnUse"><rect width="48" height="48" fill="#555c62"/><path d="M3 8h2m12-4h1m15 8h2m-27 9h1m13 4h2m16-3h1m-34 16h2m17 5h1m15-7h2" stroke="#a8adb0" stroke-opacity=".22" stroke-width="1"/><path d="M8 3h2m18 5h2m-16 9h2m23 0h2M3 30h2m13 4h2m14 9h2" stroke="#252d33" stroke-opacity=".22" stroke-width="1.2"/></pattern></defs>`;
+  return `<defs><pattern id="asphalt" width="48" height="48" patternUnits="userSpaceOnUse"><rect width="48" height="48" fill="${ROAD_MATERIALS.asphalt}"/><path d="M3 8h2m12-4h1m15 8h2m-27 9h1m13 4h2m16-3h1m-34 16h2m17 5h1m15-7h2" stroke="${ROAD_MATERIALS.asphaltLight}" stroke-opacity=".12" stroke-width="1"/><path d="M8 3h2m18 5h2m-16 9h2m23 0h2M3 30h2m13 4h2m14 9h2" stroke="${ROAD_MATERIALS.asphaltDark}" stroke-opacity=".12" stroke-width="1.2"/></pattern></defs>`;
 }
 const stroke = '#c8c9be', surface = 'url(#asphalt)';
 const roadPath = d => `<path d="${d}" fill="${surface}" stroke="${stroke}" stroke-width="3"/>`;

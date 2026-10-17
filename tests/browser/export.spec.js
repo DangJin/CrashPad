@@ -1,11 +1,12 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { createScene } from '../../src/model.js';
 
 test('social ratios preview and download exact PNG and JPG dimensions', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   const before = await page.evaluate(() => localStorage.getItem('crashpad:draft:v1'));
-  await page.locator('.app-header [data-action="preview"]').click();
+  await page.locator('.workbench-header [data-action="preview"]').click();
   for (const [preset, width, height] of [['xiaohongshu', 1080, 1440], ['douyin', 1080, 1920], ['square', 1080, 1080], ['widescreen', 1920, 1080]]) {
     await page.locator('#export-ratio').locator('[data-value="' + preset + '"]').click();
     await expect(page.locator('#export-dimensions')).toHaveText(`${width} × ${height} px`);
@@ -47,8 +48,8 @@ test('portrait typography keeps long descriptions and vehicle plans inside the p
   scene.cars[1].plan = { turn: 'mergeLeft', target: null, bend: null };
   scene.cars[1].damage = 'left';
   await page.addInitScript(scene => localStorage.setItem('crashpad:draft:v1', JSON.stringify(scene)), scene);
-  await page.goto('/');
-  await page.locator('.app-header [data-action="preview"]').click();
+  await page.goto('/'); await openInspector(page);
+  await page.locator('.workbench-header [data-action="preview"]').click();
   for (const preset of ['xiaohongshu', 'douyin']) {
     await page.locator('#export-ratio').locator('[data-value="' + preset + '"]').click();
     const overflow = await page.locator('#preview-image > svg').evaluate(svg => {

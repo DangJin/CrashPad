@@ -1,3 +1,4 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 import { createScene, addParticipant } from '../../src/model.js';
 
@@ -5,7 +6,7 @@ async function openParticipants(page) {
   if (!await page.locator('[data-add-participant="pedestrian"]').isVisible()) await page.locator('.tool-rail [data-tool="cars"]').click();
 }
 test('add, name, convert and remove different participants with saved routes and undo', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   for (const [index, type] of ['pedestrian', 'ebike', 'bicycle'].entries()) {
     await openParticipants(page);
     await page.locator(`[data-add-participant="${type}"]`).click();
@@ -21,7 +22,7 @@ test('add, name, convert and remove different participants with saved routes and
     return { a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y } };
   });
   await page.mouse.move(points.a.x, points.a.y); await page.mouse.down(); await page.mouse.move(points.b.x, points.b.y, { steps: 5 }); await page.mouse.up();
-  await page.reload();
+  await page.reload(); await openInspector(page);
   await expect(page.locator('#scene [data-participant-type="pedestrian"]')).toHaveCount(1);
   const restored = await page.evaluate(() => JSON.parse(localStorage.getItem('crashpad:draft:v1')).cars.find(c => c.id === 'E'));
   expect(restored.x).toBeCloseTo(360, 2); expect(restored.y).toBeCloseTo(430, 2);
@@ -48,11 +49,11 @@ test('mixed actors animate and remain visible with separate labels in portrait e
   for (const type of ['pedestrian', 'ebike', 'bicycle']) scene = addParticipant(scene, type);
   scene.cars[2].name = '一二三四五六七八九十一二三四五六七八九十';
   await page.addInitScript(scene => localStorage.setItem('crashpad:draft:v1', JSON.stringify(scene)), scene);
-  await page.goto('/');
-  await page.locator('#replay-mode').selectOption('full');
+  await page.goto('/'); await openInspector(page);
+  await page.getByRole('group', { name: '预览内容', exact: true }).getByRole('button', { name: '完整演示', exact: true }).click();
   await page.locator('#replay-progress').evaluate(el => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '250'); el.dispatchEvent(new Event('input', { bubbles: true })); });
   expect(await page.locator('#scene [data-car-id="C"]').getAttribute('transform')).not.toBe(`translate(${scene.cars[2].x} ${scene.cars[2].y})`);
-  await page.locator('.app-header [data-action="preview"]').click();
+  await page.locator('.workbench-header [data-action="preview"]').click();
   for (const preset of ['original', 'xiaohongshu', 'douyin']) {
     await page.locator('#export-ratio').locator('[data-value="' + preset + '"]').click();
     await expect(page.locator('#preview-image [data-car-id]')).toHaveCount(5);
