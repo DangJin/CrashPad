@@ -177,7 +177,10 @@ export default function NetworkCanvas({ config: savedConfig, net: savedNet, snap
         const step = detailed ? 34 : 15;
         return <g key={edge.id}>{movements.map(([turn, label], i) => {
           const connector = links.find(c => c.turn === turn), color = snapshot?.signals[connector.id] || (node.signal?.plan==='cycle'?(node.signal.start==='red'?'red':'green'):(edge.heading % 180 === 0 && (node.signal?.plan !== 'protected' || ['straight', 'right'].includes(turn)) ? 'green' : 'red'));
-          const distance = 22 + i * step, x = p.x - vx / length * distance / sx, y = p.y - vy / length * distance / sy;
+          // Place the interactive lamp outside the shoulder so its screen-sized
+          // target cannot obscure a short road or its port in overview mode.
+          const shoulder = Math.max(20, LANES / 2 * Math.hypot(Math.sin(theta) * sx, Math.cos(theta) * sy) + 18);
+          const distance = 22 + i * step, x = p.x - vx / length * distance / sx - vy / length * shoulder / sx, y = p.y - vy / length * distance / sy + vx / length * shoulder / sy;
           return <g key={turn} data-network-signal={node.id} role="button" tabIndex={0} aria-label={`设置红绿灯 ${node.name || node.id} · ${label}行`} transform={screen(x, y)} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onSelect({type:'node',id:node.id,focus:'signal'});}} onKeyDown={e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();e.stopPropagation();onSelect({type:'node',id:node.id,focus:'signal'});}}}><rect x="-14" y="-16" width={detailed?44:28} height="32" rx="5" fill="transparent" stroke={selected?.id===node.id&&selected?.focus==='signal'?'#245bdb':'none'} strokeWidth="1.5"/><title>{label}行信号：{({green:'绿灯',red:'红灯',yellow:'黄灯'})[color]}</title><rect x="-6" y="-8" width={detailed ? 28 : 12} height="16" rx="3" fill="#223047"/><circle data-network-light={color} data-network-turn={turn} cx="0" cy="0" r="3.5" fill={color === 'green' ? '#36d183' : color === 'yellow' ? '#f7cf44' : '#f45b62'}/>{detailed && <text x="8" y="4" fill="white" fontSize="11">{label}</text>}</g>;
         })}</g>;
       })}
