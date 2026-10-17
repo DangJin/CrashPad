@@ -18,7 +18,7 @@ scene.note = '示例：A 车直行，B 车由南侧进入路口。虚线为已�
 const browser = await chromium.launch({ headless: true, ...(process.env.CRASH_PAD_BROWSER ? { executablePath: process.env.CRASH_PAD_BROWSER } : {}) });
 async function open(options) {
   const context = await browser.newContext({ ...options, locale: 'zh-CN', reducedMotion: 'reduce' });
-  await context.addInitScript(({ key, scene }) => localStorage.setItem(key, JSON.stringify(scene)), { key: STORAGE_KEY, scene });
+  await context.addInitScript(({ key, scene }) => { localStorage.setItem('crashpad:welcome:v1', 'seen'); localStorage.setItem(key, JSON.stringify(scene)); }, { key: STORAGE_KEY, scene });
   const page = await context.newPage(); await page.goto(baseURL);
   await page.locator('#scene').waitFor(); await page.evaluate(() => document.fonts.ready);
   return page;

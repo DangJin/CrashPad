@@ -1,0 +1,61 @@
+import { test, expect } from '@playwright/test';
+import { makeExample } from '../../src/traffic/network/model.js';
+import { DEFAULT_CONFIG, copy } from '../../src/traffic/engine.js';
+async function open(page) { await page.addInitScript(config => { if (!localStorage.getItem('crashpad:network:v1')) localStorage.setItem('crashpad:network:v1', JSON.stringify({ config })); }, makeExample()); await page.goto('/#/traffic'); await page.getByRole('button', { name: '全景', exact: true }).click(); }
+test('one canvas inserts lane templates and supports undo, redo and safe keyboard deletion', async ({ page }, info) => {
+  await open(page);
+  await expect(page.getByRole('main', { name: '车流实验室', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: '线性道路', exact: true })).toHaveCount(0);
+  await page.locator('[data-network-road="r-east"]').click();
+  await page.getByRole('button', { name: '车道减少', exact: true }).click();
+  await expect(page.locator('[data-network-node]')).toHaveCount(6);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('spinbutton', { name: '西侧车道数', exact: true })).toHaveValue('1');
+  await page.getByRole('button', { name: '撤销编辑', exact: true }).click(); await expect(page.locator('[data-network-node]')).toHaveCount(5);
+  await page.getByRole('button', { name: '重做编辑', exact: true }).click(); await expect(page.locator('[data-network-node]')).toHaveCount(6);
+  await page.locator('[data-network-node^="section-"]').press('Enter');
+  await page.getByRole('textbox', { name: '对象名称', exact: true }).fill('测试路段');
+  await page.getByRole('textbox', { name: '对象名称', exact: true }).press('Backspace'); await expect(page.locator('[data-network-node]')).toHaveCount(6);
+  await page.locator('[data-network-node^="section-"]').press('Enter'); await page.keyboard.press('Backspace');
+  await expect(page.locator('[data-network-node]')).toHaveCount(5); await expect(page.getByRole('alert')).toBeVisible();
+  await page.keyboard.press('ControlOrMeta+z'); await expect(page.locator('[data-network-node]')).toHaveCount(6); await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('unified-templates.png'), fullPage: true });
+});
+test('toll plaza shares the editor with windows, lane counts and actual worker traffic', async ({ page }, info) => {
+  await open(page);
+  await page.getByRole('button', { name: '4 → 8 个窗口 → 4 车道', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.locator('[data-network-toll-booth]')).toHaveCount(8);
+  await page.getByRole('group', { name: '窗口 8 类型', exact: true }).getByRole('button', { name: '人工', exact: true }).click();
+  await expect(page.locator('[data-booth-type="manual"]')).toHaveCount(1);
+  await expect(page.getByRole('spinbutton', { name: '西侧车道数', exact: true })).toHaveValue('4');
+  await expect(page.getByRole('spinbutton', { name: '东侧车道数', exact: true })).toHaveValue('4');
+  await page.getByRole('button', { name: '20×', exact: true }).click(); await page.locator('[data-network-play]').click();
+  await expect(page.locator('[data-network-car]').first()).toBeVisible();
+  await page.waitForTimeout(600); await page.getByRole('button', { name: '暂停', exact: true }).click();
+  await page.screenshot({ path: info.outputPath('unified-toll.png'), fullPage: true });
+  await page.reload(); await expect(page.locator('[data-booth-type="manual"]')).toHaveCount(1);
+});
+test('ramp template creates a visible branch with contextual inlet settings', async ({ page }) => {
+  await open(page); await page.locator('[data-network-road="r-east"]').click();
+  await page.getByRole('button', { name: '匝道汇入', exact: true }).click();
+  await expect(page.locator('[data-network-node]')).toHaveCount(7);
+  await expect(page.getByRole('spinbutton', { name: '汇入车辆数', exact: true })).toHaveValue('0');
+  await page.getByRole('spinbutton', { name: '汇入车辆数', exact: true }).fill('8');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.reload(); await page.locator('[data-network-node^="section-"]:not([data-network-node$="-branch"])').press('Enter');
+  await expect(page.getByRole('spinbutton', { name: '汇入车辆数', exact: true })).toHaveValue('8');
+});
+test('legacy draft and paired scenarios import without rewriting the originals', async ({ page }) => {
+  const config = copy(DEFAULT_CONFIG); config.initialLanes = 4; config.segments = [{ id: 'toll', kind: 'toll', change: 1, side: 'right', length: 600, tollBooths: 8, tollExitLanes: 4 }];
+  const legacy = JSON.stringify({ config, A: config, B: config });
+  await page.addInitScript(value => { localStorage.removeItem('crashpad:network:v1'); localStorage.setItem('crashpad:traffic:v1', value); }, legacy);
+  await page.goto('/#/traffic'); await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.locator('[data-network-toll-booth]')).toHaveCount(8);
+  expect(await page.evaluate(() => localStorage.getItem('crashpad:traffic:v1'))).toBe(legacy);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('crashpad:network:v1')));
+  expect(saved.config.importedFrom).toBe('linear'); expect(saved.A).toBeTruthy(); expect(saved.B).toBeTruthy();
+  await page.getByRole('group', { name: '路网设置分类' }).getByRole('button', { name: '对照', exact: true }).click();
+  await expect(page.getByRole('button', { name: '运行 A / B 对照', exact: true })).toBeEnabled();
+});
