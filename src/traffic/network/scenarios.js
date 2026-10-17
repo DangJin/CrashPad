@@ -1,12 +1,33 @@
+import { corridorExample } from './templates.js';
 import { normalizeRamps } from './ramps.js';
 export const TRAFFIC_SCENARIOS = [
-  { id: 'highway-morning', title: '高速早高峰', description: '匝道不断汇入，哪条车道更顺？', focus: 'merge' },
-  { id: 'city-morning', title: '城市主干道早高峰', description: '连过三个路口，这一路要等多久？', focus: 'junction-b' },
+  { id: 'highway-morning', title: '高速早高峰', description: '匝道不断汇入，哪条车道更顺？', focus: 'merge', icon: 'merge' },
+  { id: 'city-morning', title: '城市主干道早高峰', description: '连过三个路口，这一路要等多久？', focus: 'junction-b', icon: 'cross' },
+  { id: 'toll-mixed', title: '收费站混合车流', description: '6 个 ETC、2 个人工窗口，看看队排在哪。', focus: 'section', icon: 'toll' },
+  { id: 'zipper-merge', title: '拉链式汇入', description: '主路与匝道交替放行，观察两边队列。', focus: 'section', icon: 'merge' },
+  { id: 'busy-exit', title: '出口集中分流', description: '六成车辆驶向同一出口，提前变道会怎样？', focus: 'section', icon: 'exit' },
 ];
 const terminal = (id, name, x, y, rotation, role = 'both') => ({ id, type: 'terminal', name, x, y, rotation, role });
 const road = (id, from, to, lanes, length, speed, oneWay = false) => ({ id, from, to, lanes, length, speed, oneWay });
 const base = id => ({ version: 1, scenario: id, seed: 42, etcPercent: 100, driverMix: { conservative: 20, normal: 60, aggressive: 20 }, player: null });
 export function createTrafficScenario(id) {
+  if (['toll-mixed', 'zipper-merge', 'busy-exit'].includes(id)) {
+    const config = corridorExample(({ 'toll-mixed': 'toll', 'zipper-merge': 'merge', 'busy-exit': 'exit' })[id]);
+    Object.assign(config, base(id));
+    const section = config.nodes.find(n => n.id === 'section');
+    if (id === 'toll-mixed') {
+      section.name = 'ETC / 人工混合收费站'; section.tollLanes = ['etc','etc','manual','etc','etc','etc','manual','etc'];
+      config.etcPercent = 70; config.demand[0].count = 240; config.demand[0].flow = 30;
+    } else if (id === 'zipper-merge') {
+      section.name = '拉链式汇入'; section.mergePolicy = 'zipper';
+      config.demand[0].count = 160; config.demand[0].flow = 80;
+      config.demand[1].count = 80; config.demand[1].flow = 40;
+    } else {
+      section.name = '集中驶出路段'; config.demand[0].count = 240; config.demand[0].flow = 70;
+      config.demand[0].destinations = { end: 40, branch: 60 };
+    }
+    return config;
+  }
   if (id === 'highway-morning') return normalizeRamps({ ...base(id), nodes: [
     terminal('start', '郊区主路入口', 100, 260, 0, 'source'),
     { id: 'merge', type: 'merge', name: '住宅区匝道汇入', x: 650, y: 260, rotation: 0, mergePolicy: 'cooperative', priority: 'ew', turns: {} },

@@ -1,0 +1,8 @@
+import EntryFlowPanel from './EntryFlowPanel.jsx';
+import { DRIVING_STYLES, adjustTrafficMix } from '../../drivingStyles.js';
+import NumberField from '../NumericField.jsx';
+import RangeNumberField from '../RangeNumberField.jsx';
+
+export default function FlowPanel({sources, sinks, flowEntryId, setFlowEntryId, demandFor, editDemand, mixDestination, config, edit}) {
+ return <><label className="network-field"><span>入口</span><select aria-label="车流入口" value={sources.some(n => n.id === flowEntryId) ? flowEntryId : sources[0]?.id || ''} onChange={e => setFlowEntryId(e.target.value)}>{sources.map(n => <option key={n.id} value={n.id}>{n.name || n.id}</option>)}</select></label><EntryFlowPanel key={flowEntryId} entry={sources.find(n=>n.id===flowEntryId)||sources[0]} sinks={sinks} demandFor={demandFor} editDemand={editDemand} mixDestination={mixDestination}/><section className="network-section"><h3>车辆资格 · 所有入口</h3><RangeNumberField title="ETC 车辆占比（%）" value={config.etcPercent ?? 100} max={100} onChange={v => edit(next => { next.etcPercent = Math.max(0, Math.min(100, Math.round(v))); })}/><p className="traffic-help">非 ETC 车辆仅走人工窗口；ETC 车辆也可选择人工窗口。默认 100% 用于兼容现有场景，并非实际统计比例。</p></section><section className="network-section"><h3>驾驶风格 · 所有入口</h3>{Object.entries(DRIVING_STYLES).map(([key, style]) => <RangeNumberField key={key} title={`${style.label}占比（%）`} value={config.driverMix[key]} max={100} onChange={v => edit(next => { next.driverMix = adjustTrafficMix(next.driverMix, key, Math.max(0, Math.min(100, v))); })}/>)}<NumberField title="随机种子" value={config.seed} min={1} max={999997} onChange={v => edit(next => { next.seed = v; })}/></section></>;
+}

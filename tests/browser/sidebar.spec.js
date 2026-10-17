@@ -1,7 +1,8 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 
 test('road cards keep the same width when switching between scrolling and non-scrolling content', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   if (page.viewportSize().width <= 860) await page.locator('.tool-rail [data-tool="road"]').click();
   // Force a space-consuming scrollbar, as with the system's always-visible scrollbar setting.
   await page.addStyleTag({ content: '.tool-content::-webkit-scrollbar { width: 14px; }' });

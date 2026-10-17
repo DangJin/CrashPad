@@ -7,7 +7,7 @@ export function roadIssues(config) {
     const mouth=roadMouths(config,road);
     if(!a||!b||!mouth||mouth.valid)return [];
     const gap=minimumNodeGap(a,b,config.roads),distance=Math.round(Math.hypot(b.x-a.x,b.y-a.y));
-    const reason=a.x!==b.x&&a.y!==b.y?'两端未对齐':distance<gap?`间距 ${distance}，至少需要 ${gap}`:'连接端方向不兼容';
+    const reason=mouth.error || (a.x!==b.x&&a.y!==b.y?'两端未对齐':distance<gap?`间距 ${distance}，至少需要 ${gap}`:'连接端方向不兼容');
     return [{id:road.id,label:`${a.name||a.id} → ${b.name||b.id}`,reason}];
   });
 }

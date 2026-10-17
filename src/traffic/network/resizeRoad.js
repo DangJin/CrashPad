@@ -1,3 +1,4 @@
+import { curveCenterline, polylineLength, synchronizeCurves } from './curveGeometry.js';
 import { roadMouths } from './layout.js';
 import { clone, junctionRadius, compileNetwork } from './model.js';
 // Translate complete attached subgraphs; never deform neighbouring roads.
@@ -16,6 +17,15 @@ export function resizeRoadLength(config,selection,length){
     if(!Number.isFinite(length)||length<60||length>1500)return {error:'道路长度范围为 60～1500 米。'};
     const a=nodes[r.from],b=nodes[r.to],group=component(next,b.id,null,r.id);
     if(group.has(a.id))return {error:'这条道路位于闭环中，无法单独伸缩；请先断开一处连接再调整。'};
+    if(r.geometry){
+      const full=curveCenterline(config,r,false),total=polylineLength(full),current=polylineLength(curveCenterline(config,r)),factor=(length+total-current)/total;
+      const oldEnd={x:b.x,y:b.y};
+      r.geometry.points=r.geometry.points.map(p=>({x:a.x+(p.x-a.x)*factor,y:a.y+(p.y-a.y)*factor}));
+      const end=r.geometry.points.at(-1),dx=end.x-oldEnd.x,dy=end.y-oldEnd.y;
+      for(const n of next.nodes)if(group.has(n.id)){n.x+=dx;n.y+=dy;}
+      const target=clone(r.geometry);synchronizeCurves(config,next);r.geometry=target;r.length=length;
+      try{compileNetwork(next);}catch(error){return {error:`长度调整未保存：${error.message}`};}return {config:next};
+    }
     const dx=b.x-a.x,dy=b.y-a.y,distance=Math.hypot(dx,dy);
     if(!distance)return {error:'请先调整重合的道路端点。'};
     const visible=Math.max(20,distance-junctionRadius(a,next.roads)-junctionRadius(b,next.roads));
@@ -38,6 +48,7 @@ export function resizeRoadLength(config,selection,length){
     for(const [id,side] of movements){nodes[id].x+=dx*side*(newRadius-radius);nodes[id].y+=dy*side*(newRadius-radius);}
     node.visualRadius=newRadius;node.length=length;
   }
+  synchronizeCurves(config,next);
   const broken=next.roads.find(r=>!roadMouths(next,r)?.valid && roadMouths(config,config.roads.find(old=>old.id===r.id))?.valid);
   if(broken)return {error:'当前空间不足以保持连接，请先拉开相邻组件再缩短路面。'};
   let previouslyValid=true;try{compileNetwork(config);}catch{previouslyValid=false;}

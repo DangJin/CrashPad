@@ -1,0 +1,68 @@
+/* Shared workbench chrome. Business models and canvas coordinates stay in each module. */
+.workbench-header{min-height:56px;flex:none;display:flex;align-items:center;gap:20px;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--line);z-index:5}
+.workbench-brand{display:flex;align-items:center;gap:8px;flex:none;color:var(--text-strong);text-decoration:none;font-size:16px;letter-spacing:-.4px}
+.workbench-navigation{display:flex;align-self:stretch;align-items:center;gap:4px;flex:none}
+.workbench-navigation a{display:flex;align-items:center;min-height:34px;padding:6px 11px;border-radius:6px;color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap}
+.workbench-navigation a:hover{background:var(--surface-hover)}
+.workbench-navigation a[aria-current=page]{color:var(--blue);background:var(--selection)}
+.workbench-document{min-width:0;max-width:260px;flex:1}
+.workbench-document input{width:100%;min-width:0;background:transparent;border-color:transparent;font-size:13px;text-overflow:ellipsis}
+.workbench-document input:hover,.workbench-document input:focus{border-color:var(--line);background:var(--surface-soft)}
+.workbench-header-actions{display:flex;align-items:center;gap:8px;margin-left:auto;flex:none}
+.workbench-save{display:flex;align-items:center;gap:6px;margin-right:8px;font-size:12px;color:var(--muted);white-space:nowrap}
+.workbench-save:before{content:'';width:5px;height:5px;border-radius:50%;background:var(--success)}
+.workbench-save.is-error{color:var(--danger)}.workbench-save.is-error:before{background:var(--danger)}
+.workbench-history{display:flex;gap:2px;align-items:center}
+.workbench-segmented{display:inline-flex;align-items:center;gap:2px;padding:3px;border-radius:6px;background:var(--surface-soft);max-width:100%}
+.workbench-segmented button{min-height:30px;padding:5px 9px;border-radius:4px;font-size:12px;color:var(--muted);white-space:nowrap}
+.workbench-segmented button[aria-pressed=true]{color:var(--blue);background:var(--surface);box-shadow:0 1px 3px #17294012}
+.workbench-zoom{display:flex;align-items:center;gap:2px;flex:none;padding:3px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--muted)}
+.workbench-zoom button{min-width:28px;min-height:30px;padding:4px 6px;border-radius:4px;font-size:13px}
+.workbench-zoom-value{display:flex;align-items:center;font-size:12px;font-variant-numeric:tabular-nums}
+.workbench-zoom-value input[type=number]{width:46px;min-width:0;padding:4px 0;border:0;background:transparent;min-height:30px;text-align:right;font-size:12px;appearance:textfield}
+.workbench-zoom-value input::-webkit-inner-spin-button,.workbench-zoom-value input::-webkit-outer-spin-button{appearance:none;margin:0}
+.workbench-zoom-action{font-size:12px!important}.workbench-zoom-action:first-of-type{margin-left:4px}
+.workbench-playback{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:none;min-width:0;padding:10px 12px;background:var(--surface);border-top:1px solid var(--line)}
+.inspector-toggle{display:none}
+@media(max-width:1100px){.workbench-header{gap:12px}.workbench-save:not(.is-error){display:none}.workbench-document{max-width:190px}.workbench-header-actions{gap:5px}}
+@media(max-width:650px){
+.workbench-header{gap:8px;padding:8px 10px;flex-wrap:wrap;min-height:56px}
+.workbench-brand{font-size:14px}.workbench-brand .brand-symbol{width:25px;height:25px}
+.workbench-navigation{margin-left:auto;gap:1px}.workbench-navigation a{font-size:12px;padding:6px 8px;min-height:36px}
+.workbench-document{order:3;max-width:none;flex:1;min-width:90px}.workbench-header-actions{order:4;margin-left:auto;max-width:100%;flex-wrap:wrap}
+.workbench-header-actions .button{min-height:36px;padding:7px 10px}.workbench-header-actions .welcome-help{font-size:12px}.workbench-save.is-error{font-size:11px;white-space:normal}
+.workbench-playback{gap:6px;padding:8px}.workbench-segmented{flex-wrap:wrap}.workbench-segmented button{min-height:34px;padding:5px 8px}
+.workbench-zoom button{min-height:34px}.workbench-zoom-value input[type=number]{min-height:34px}
+.inspector-toggle{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:6px 10px;color:var(--blue);font-size:12px;flex:none}
+}
+
+.replay-bar.workbench-playback{display:block}
+.replay-bar .replay-controls{flex-wrap:wrap;width:100%}
+.replay-bar .replay-meta,.replay-bar .replay-meta #replay-status,.replay-bar .replay-controls #replay-time{color:var(--muted)}
+@media(max-width:900px){
+.replay-bar .replay-controls{display:grid;grid-template-columns:auto 28px minmax(30px,1fr) auto;grid-template-areas:"play rewind progress time" "mode mode mode mode" "speed speed speed exit";gap:6px}
+.replay-bar .replay-controls>[data-action=play]{grid-area:play;min-width:0}
+.replay-bar .replay-controls>[data-action=rewind]{grid-area:rewind}
+.replay-bar #replay-progress{grid-area:progress}
+.replay-bar #replay-time{grid-area:time}
+.replay-bar [aria-label="预览内容"]{grid-area:mode;justify-self:start}
+.replay-bar [aria-label="回放速度"]{grid-area:speed;justify-self:start}
+.replay-bar #exit-replay{grid-area:exit}
+.replay-bar .replay-meta{position:static;max-width:none;margin-top:6px}
+}
+
+/* Document fields stay editable at every workspace width. */
+.workbench-header .workbench-document .document-name{display:block;width:100%;max-width:100%;height:32px;margin:0;padding:6px 8px;border:1px solid transparent;border-radius:4px;color:var(--text-strong);font-size:13px}
+.workbench-header .workbench-document .document-name:hover,.workbench-header .workbench-document .document-name:focus{border-color:var(--line);background:var(--surface-soft)}
+@media(max-width:650px){
+.workbench-header .workbench-document{order:5;flex-basis:100%;max-width:100%;min-width:0}
+.workbench-header .workbench-document .document-name{height:30px;padding:4px 8px;background:var(--surface-soft)}
+.workbench-header .workbench-header-actions{margin-left:auto;gap:5px}
+}
+
+.workbench-header a:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
+.workbench-header .workbench-document .document-name:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+@media(max-width:360px){
+.workbench-header{column-gap:5px}.workbench-navigation a{padding-inline:6px}
+.workbench-zoom{gap:0}.workbench-zoom button{padding-inline:4px;min-width:26px}
+}

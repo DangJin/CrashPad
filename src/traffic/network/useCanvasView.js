@@ -3,11 +3,14 @@ const clamp = value => Math.max(.01, Math.min(6, value));
 export default function useCanvasView({ zoom, bounds, initialCenter, followPoint, onZoom, onNavigate, onScale, focusRequest, axis }) {
   const svg = useRef(null), host = useRef(null), live = useRef(null), pan = useRef(null), pinch = useRef(null), pointers = useRef(new Map()), space = useRef(false), suppressClick = useRef(false);
   const [size, setSize] = useState({ width: 900, height: 600, measured: false }), [center, setCenter] = useState(initialCenter);
-  const fitScale = Math.max(.01, axis === 'horizontal' ? size.width / bounds.width : axis === 'vertical' ? size.height / bounds.height : Math.min(size.width / bounds.width, size.height / bounds.height));
+  // Reserve screen-space room for endpoint actions and the bottom view controls.
+  const compact = window.matchMedia('(max-width:650px)').matches;
+  const fitWidth = Math.max(120, size.width - (compact ? 80 : 192)), fitHeight = Math.max(100, size.height - 160);
+  const fitScale = Math.max(.01, axis === 'horizontal' ? fitWidth / bounds.width : axis === 'vertical' ? fitHeight / bounds.height : Math.min(fitWidth / bounds.width, fitHeight / bounds.height));
   const scale = zoom === 'fit' || zoom === 'auto' ? (zoom === 'auto' && !axis ? Math.max(.8, fitScale) : fitScale) : clamp(Number(zoom) / 100);
   const scaleX = axis === 'vertical' ? Math.max(4, scale) : scale, scaleY = axis === 'horizontal' ? Math.max(4, scale) : scale;
-  const position = zoom === 'auto' && !axis ? initialCenter : zoom === 'fit' || zoom === 'auto' ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 } : center;
-  useEffect(() => { if (zoom === 'fit') setCenter({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }); }, [zoom, bounds.x, bounds.y, bounds.width, bounds.height]);
+  const position = zoom === 'auto' && !axis ? initialCenter : zoom === 'fit' || zoom === 'auto' ? { x: bounds.x + bounds.width / 2 - (compact ? 0 : 56 / scaleX), y: bounds.y + bounds.height / 2 + 30 / scaleY } : center;
+  useEffect(() => { if (zoom === 'fit') setCenter({ x: bounds.x + bounds.width / 2 - (compact ? 0 : 56 / scaleX), y: bounds.y + bounds.height / 2 + 30 / scaleY }); }, [zoom, bounds.x, bounds.y, bounds.width, bounds.height, scaleX, scaleY, compact]);
   useEffect(() => {
     if (!focusRequest) return;
     const view = live.current;

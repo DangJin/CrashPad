@@ -1,10 +1,11 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 import { createScene } from '../../src/model.js';
 
 test('signed angle axis preserves heading and both equivalent half-turn endpoints', async ({ page }) => {
   const scene = createScene(); scene.cars[0].angle = 359;
   await page.addInitScript(scene => localStorage.setItem('crashpad:draft:v1', JSON.stringify(scene)), scene);
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   const slider = page.locator('#angle');
   await expect(slider).toHaveAttribute('min', '-180'); await expect(slider).toHaveAttribute('max', '180');
   await expect(slider).toHaveValue('-1'); await expect(page.locator('.angle-row')).toContainText('-1°');

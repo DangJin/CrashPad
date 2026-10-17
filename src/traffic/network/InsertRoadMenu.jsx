@@ -11,7 +11,9 @@ export default function InsertRoadMenu({ target, onClose, onInsert }) {
   useLayoutEffect(() => {
     const element = menu.current, stage = element.parentElement.getBoundingClientRect();
     const canvas = element.parentElement.querySelector('[data-network-canvas]').getBoundingClientRect();
-    const box = element.getBoundingClientRect(), margin = 8;
+    const margin = 8;
+    element.style.maxHeight = `${Math.max(80, Math.min(canvas.bottom, innerHeight) - Math.max(canvas.top, 0) - margin * 2)}px`;
+    const box = element.getBoundingClientRect();
     const left = Math.max(canvas.left, 0) + margin, right = Math.min(canvas.right, innerWidth) - margin;
     const top = Math.max(canvas.top, 0) + margin, bottom = Math.min(canvas.bottom, innerHeight) - margin;
     let x = target.anchor.x + margin, y = target.anchor.y + margin;
@@ -24,7 +26,7 @@ export default function InsertRoadMenu({ target, onClose, onInsert }) {
   useEffect(() => {
     const outside = event => { if (!menu.current.contains(event.target)) close.current(); };
     const key = event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close.current(); } };
-    const dismiss = () => close.current();
+    const dismiss = event => { if (event?.type === 'scroll' && menu.current?.contains(event.target)) return; close.current(); };
     document.addEventListener('pointerdown', outside, true);
     document.addEventListener('keydown', key, true);
     document.addEventListener('scroll', dismiss, true);

@@ -23,8 +23,8 @@ export default function SceneCanvas({ editor, selected, chooseCar, chooseSignal,
     const id = routeBend?.dataset.routeBend || car?.dataset.car || route?.dataset.route || target?.dataset.planTarget || bend?.dataset.planBend;
     const source = editor.sceneRef.current, vehicle = source.cars.find(c => c.id === id);
     const item = collision ? source.collision : routeBend ? samplePath(pathFor(vehicle), .5) : route ? pathFor(vehicle).start : target || bend ? plannedPathFor(vehicle)[target ? 'end' : 'control'] : vehicle;
-    drag.current = { pointerId: event.pointerId, type: collision ? 'collision' : routeBend ? 'route-bend' : route ? 'route' : target ? 'plan-target' : bend ? 'plan-bend' : 'car', id, dx: p.x - item.x, dy: p.y - item.y, before: clone(source) };
-    if (id) chooseCar(id); else clearSelection();
+    drag.current = { clientX: event.clientX, clientY: event.clientY, pointerId: event.pointerId, type: collision ? 'collision' : routeBend ? 'route-bend' : route ? 'route' : target ? 'plan-target' : bend ? 'plan-bend' : 'car', id, dx: p.x - item.x, dy: p.y - item.y, before: clone(source) };
+    if (id) chooseCar(id, {reveal:false}); else clearSelection();
     svgRef.current.setPointerCapture(event.pointerId);
   }
   function move(event) {
@@ -48,6 +48,7 @@ export default function SceneCanvas({ editor, selected, chooseCar, chooseSignal,
     if (event.type === 'pointercancel') editor.replace(d.before);
     if (svgRef.current.hasPointerCapture(event.pointerId)) svgRef.current.releasePointerCapture(event.pointerId);
     editor.commit();
+    if (event.type === 'pointerup' && d.id && Math.hypot(event.clientX-d.clientX,event.clientY-d.clientY)<3) chooseCar(d.id);
   }
   return <div className="canvas-stage"><div className="stage-sheet" style={{ width: `${zoom * 100}%`, height: `${zoom * 100}%` }}><svg id="scene" tabIndex={-1} ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} xmlns="http://www.w3.org/2000/svg" role="img" aria-label={replay.active ? '事故过程模拟回放' : '事故示意图，拖动车辆调整位置'} className={tool === 'collision' ? 'marking' : ''} onKeyDown={e => { if (!replay.active && ['Enter', ' '].includes(e.key)) { const signal = e.target.closest('[data-signal-direction]'); if (signal) { e.preventDefault(); chooseSignal(signal.dataset.signalDirection); } } }} onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end} dangerouslySetInnerHTML={{ __html: sceneMarkup(editor.scene, { selected, interactive: true, grid, progress: replay.active ? replay.progress : null, replayMode: replay.mode }) }} /></div></div>;
 }

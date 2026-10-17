@@ -1,3 +1,4 @@
+import { curveCenterline, curveLane, curveSide, validateCurve, segmentsCross } from './curveGeometry.js';
 import { normalizeRamps, rampInfo, rampPoints, rampSides, rampJoinPoints } from './ramps.js';
 import { expandFacilities } from './facilities.js';
 // Geometry is in canvas metres. Vehicle progress uses physical path metres.
@@ -9,20 +10,21 @@ export const clone = value => JSON.parse(JSON.stringify(value));
 const sides = ['east', 'south', 'west', 'north'];
 export const sideNames = { east: '东', south: '南', west: '西', north: '北' };
 export function ports(node) {
-  const base = node.type === 'terminal' ? [0] : node.type === 'bend' ? [0, 1] : ['straight', 'transition', 'toll'].includes(node.type) ? [0, 2] : ['tee', 'merge', 'exit'].includes(node.type) ? [0, 1, 2] : [0, 1, 2, 3];
+  const base = node.type === 'terminal' ? [0] : node.type === 'bend' ? [0, 1] : ['anchor', 'straight', 'transition', 'toll'].includes(node.type) ? [0, 2] : ['tee', 'merge', 'exit'].includes(node.type) ? [0, 1, 2] : [0, 1, 2, 3];
   return base.map(side => sides[(side + (node.rotation || 0) / 90) % 4]);
 }
-export function junctionRadius(node, roads = []) { return Number.isFinite(node.visualRadius) && node.visualRadius > 0 ? node.visualRadius : node.type === 'toll' ? 190 : node.type === 'transition' && !node.internal ? 100 : node.internal || node.type === 'terminal' ? RADIUS : Math.max(RADIUS, ...roads.filter(r => r.from === node.id || r.to === node.id).map(r => r.lanes * LANES + 8)); }
+export function junctionRadius(node, roads = []) { return Number.isFinite(node.visualRadius) && node.visualRadius > 0 ? node.visualRadius : node.type === 'anchor' ? 30 : node.type === 'toll' ? 190 : node.type === 'transition' && !node.internal ? 100 : node.internal || node.type === 'terminal' ? RADIUS : Math.max(RADIUS, ...roads.filter(r => r.from === node.id || r.to === node.id).map(r => r.lanes * LANES + 8)); }
 export function portPoint(node, side) {
   const index = sides.indexOf(side), angle = index * Math.PI / 2;
   return { x: node.x + Math.round(Math.cos(angle) * (node.radius ?? junctionRadius(node))), y: node.y + Math.round(Math.sin(angle) * (node.radius ?? junctionRadius(node))) };
 }
 export function sideOf(a, b) { return Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? b.x > a.x ? 'east' : 'west' : b.y > a.y ? 'south' : 'north'; }
 export function turnFor(a, b) {
-  const angle = ((b.heading - a.heading) % 360 + 360) % 360;
+  const angle = ((Math.round(((b.startHeading??b.heading) - (a.endHeading??a.heading))/90)*90) % 360 + 360) % 360;
   return angle === 0 ? 'straight' : angle === 90 ? 'right' : angle === 270 ? 'left' : 'uturn';
 }
 export function laneTurns(node, edge, lane) {
+  if (node.type === 'anchor') return ['straight','left','right'];
   if (node.type === 'bend') return ['left', 'right'];
   if (['straight', 'transition'].includes(node.type)) return ['straight'];
   if (['merge', 'exit'].includes(node.type)) return ['straight', 'left', 'right'];
@@ -73,7 +75,7 @@ export function bendSpeedLimit(points, roadLimit) {
 export function connectorGeometry(incoming, outgoing, lane, targetLane) {
   const start = pointOn(incoming.paths[lane], incoming.length), end = pointOn(outgoing.paths[targetLane], 0), h1 = start.heading * Math.PI / 180, h2 = end.heading * Math.PI / 180;
   if (incoming.kind === 'ramp' || outgoing.kind === 'ramp') return pathGeometry(rampJoinPoints(start, end, incoming.kind === 'ramp'));
-  const turn = turnFor(incoming, outgoing), reach = turn === 'uturn' ? 42 : 34;
+  const turn = turnFor(incoming, outgoing), reach = incoming.curved||outgoing.curved?Math.min(34,Math.hypot(end.x-start.x,end.y-start.y)*.4):turn === 'uturn' ? 42 : 34;
   const c1 = { x: start.x + Math.cos(h1) * reach, y: start.y + Math.sin(h1) * reach }, c2 = { x: end.x - Math.cos(h2) * reach, y: end.y - Math.sin(h2) * reach };
   const points = Array.from({ length: 41 }, (_, i) => { const t = i / 40; return between(between(between(start, c1, t), between(c1, c2, t), t), between(between(c1, c2, t), between(c2, end, t), t), t); });
   return pathGeometry(points);
@@ -96,7 +98,7 @@ export function compileNetwork(source) {
   const nodes = Object.fromEntries(config.nodes.map(n => [n.id, { ...n, radius: junctionRadius(n, config.roads) }]));
   if (Object.keys(nodes).length !== config.nodes.length || new Set(config.roads.map(r => r.id)).size !== config.roads.length) throw Error('对象编号重复。');
   for (const n of config.nodes) {
-    if (!['cross', 'tee', 'bend', 'terminal', 'straight', 'transition', 'merge', 'exit'].includes(n.type) || ![0, 90, 180, 270].includes(n.rotation) || !Number.isFinite(n.x) || !Number.isFinite(n.y)) throw Error('道路对象位置或类型无效。');
+    if (!['anchor', 'cross', 'tee', 'bend', 'terminal', 'straight', 'transition', 'merge', 'exit'].includes(n.type) || ![0, 90, 180, 270].includes(n.rotation) || !Number.isFinite(n.x) || !Number.isFinite(n.y)) throw Error('道路对象位置或类型无效。');
     if (['straight', 'transition'].includes(n.type) && !n.internal && n.length != null && (!Number.isFinite(n.length) || n.length < 60 || n.length > 1500)) throw Error('路段长度需要为 60～1500 米。');
     if (n.signal && (typeof n.signal.enabled !== 'boolean' || !['alternating', 'protected', 'cycle'].includes(n.signal.plan) || !Number.isFinite(n.signal.green) || n.signal.green < 5 || n.signal.green > 120 || n.signal.plan === 'cycle' && (!Number.isFinite(n.signal.red ?? 30) || (n.signal.red ?? 30) < 5 || (n.signal.red ?? 30) > 120) || !Number.isFinite(n.signal.leftGreen) || n.signal.leftGreen < 5 || n.signal.leftGreen > 120)) throw Error('信号时长需要为 5～120 秒。');
   }
@@ -106,9 +108,10 @@ export function compileNetwork(source) {
     const a = nodes[road.from], b = nodes[road.to];
     if (!a || !b || a.id === b.id) throw Error('道路连接了不存在的对象。');
     if (!Number.isInteger(road.lanes) || road.lanes < 1 || road.lanes > (road.internal ? 12 : 6) || !Number.isFinite(road.length) || road.length < 60 || road.length > 1500 || !Number.isFinite(road.speed) || road.speed < 20 || road.speed > 120) throw Error('道路每方向 1～6 车道，长度 60～1500 米，限速 20～120。');
-    if (!rampInfo(config, road) && (a.x !== b.x && a.y !== b.y || Math.hypot(a.x - b.x, a.y - b.y) < Math.max(120, a.radius + b.radius + 10))) throw Error('道路两端须水平或垂直对齐，间距至少 120。');
+    const curve=curveCenterline(config,road);if(curve)validateCurve(curve);
+    if (!curve && !rampInfo(config, road) && (a.x !== b.x && a.y !== b.y || Math.hypot(a.x - b.x, a.y - b.y) < Math.max(120, a.radius + b.radius + 10))) throw Error('道路两端须水平或垂直对齐，间距至少 120。');
     for (const [from, to] of [[a, b], [b, a]]) {
-      const special = rampSides(config, road), side = special ? special[from.id === road.from ? 0 : 1] : sideOf(from, to), port = `${from.id}:${side}`;
+      const special = rampSides(config, road), side = curve ? curveSide(config,road,from.id===road.from) : special ? special[from.id === road.from ? 0 : 1] : sideOf(from, to), port = `${from.id}:${side}`;
       if (!ports(from).includes(side) || usedPorts.has(port)) throw Error(`${from.name || from.id} 的${sideNames[side]}侧连接不兼容或已被占用。`);
       usedPorts.add(port);
     }
@@ -117,9 +120,10 @@ export function compileNetwork(source) {
       const heading = sides.indexOf(side) * 90, angle = heading * Math.PI / 180, dx = Math.cos(angle), dy = Math.sin(angle), edge = { id: `${road.id}:${from.id}`, roadId: road.id, kind: road.kind, from: from.id, to: to.id, heading, lanes: road.lanes, length: road.length, speed: road.speed, owner: road.owner || road.id, toll: road.toll, paths: [] };
       for (let lane = 0; lane < road.lanes; lane++) {
         const offset = (lane + .5) * LANES, fromRadius = from.radius, toRadius = to.radius, start = { x: from.x + dx * fromRadius - dy * offset, y: from.y + dy * fromRadius + dx * offset }, end = { x: to.x - dx * toRadius - dy * offset, y: to.y - dy * toRadius + dx * offset };
-        const path = { ...pathGeometry(rampPoints(config, road, lane) || [start, end], road.length), id: `${edge.id}:${lane}`, edge: edge.id, lane, type: 'road', speed: road.speed, toll: road.toll ? { ...road.toll, key: `${road.toll.station}:${edge.from}`, booth: lane, type: road.toll.types[lane] || 'etc' } : null };
+        const path = { ...pathGeometry(curveLane(config,road,lane,from.id!==road.from) || rampPoints(config, road, lane) || [start, end], road.length), id: `${edge.id}:${lane}`, edge: edge.id, lane, type: 'road', speed: road.speed, toll: road.toll ? { ...road.toll, key: `${road.toll.station}:${edge.from}`, booth: lane, type: road.toll.types[lane] || 'etc' } : null };
         edge.paths.push(path); paths[path.id] = path;
       }
+      if(curve){edge.curved=true;edge.startHeading=pointOn(edge.paths[0],0).heading;edge.endHeading=pointOn(edge.paths[0],edge.length).heading;edge.heading=edge.endHeading;}
       edges[edge.id] = edge;
     }
   }
@@ -127,12 +131,12 @@ export function compileNetwork(source) {
   for (let i = 0; i < config.roads.length; i++) for (let j = i + 1; j < config.roads.length; j++) {
     const a = config.roads[i], b = config.roads[j];
     if ([a.from, a.to].some(id => id === b.from || id === b.to)) continue;
-    if (rampInfo(config, a) || rampInfo(config, b)) {
+    if (a.geometry || b.geometry || rampInfo(config, a) || rampInfo(config, b)) {
       const ap = Object.values(edges).find(e => e.roadId === a.id).paths[0].points;
       const bp = Object.values(edges).find(e => e.roadId === b.id).paths[0].points;
       const cross = (p, q, r) => (q.x-p.x)*(r.y-p.y)-(q.y-p.y)*(r.x-p.x);
       for (let k=1;k<ap.length;k++) for(let l=1;l<bp.length;l++) {
-        if(cross(ap[k-1],ap[k],bp[l-1])*cross(ap[k-1],ap[k],bp[l])<0 && cross(bp[l-1],bp[l],ap[k-1])*cross(bp[l-1],bp[l],ap[k])<0) throw Error('匝道与其他道路交叉，请调整位置。');
+        if((a.geometry||b.geometry)?segmentsCross(ap[k-1],ap[k],bp[l-1],bp[l]):cross(ap[k-1],ap[k],bp[l-1])*cross(ap[k-1],ap[k],bp[l])<0 && cross(bp[l-1],bp[l],ap[k-1])*cross(bp[l-1],bp[l],ap[k])<0) throw Error(a.geometry||b.geometry?'曲线与其他道路交叉，请调整控制点；交叉处需明确路口或立交关系。':'匝道与其他道路交叉，请调整位置。');
       }
       continue;
     }
@@ -159,11 +163,11 @@ export function compileNetwork(source) {
         if (!turns.includes(turn)) continue;
         const turningLanes = Array.from({ length: a.lanes }, (_, i) => i).filter(i => laneTurns(node, a, i).includes(turn));
         const turnIndex = turningLanes.indexOf(lane);
-        const widening = !node.internal && ['straight', 'transition'].includes(node.type) && !a.toll && b.lanes > a.lanes;
-        const targets = b.toll ? Array.from({ length: b.lanes }, (_, i) => i) : widening ? Array.from({length: Math.floor((lane+1)*b.lanes/a.lanes)-Math.floor(lane*b.lanes/a.lanes)},(_,i)=>Math.floor(lane*b.lanes/a.lanes)+i) : [a.kind === 'ramp' ? (rampInfo(config, config.roads.find(r => r.id === a.roadId))?.side < 0 ? 0 : b.lanes - 1) : a.toll ? Math.min(b.lanes - 1, Math.floor(lane * b.lanes / a.lanes)) : node.type === 'bend' ? Math.min(lane, b.lanes - 1) : ['straight', 'transition'].includes(node.type) ? Math.min(lane, b.lanes - 1) : turn === 'right' ? Math.max(0, b.lanes - turningLanes.length + turnIndex) : turn === 'straight' ? Math.min(lane, b.lanes - 1) : turn === 'left' ? Math.min(turnIndex, b.lanes - 1) : 0];
+        const widening = !node.internal && ['anchor', 'straight', 'transition'].includes(node.type) && !a.toll && b.lanes > a.lanes;
+        const targets = b.toll ? Array.from({ length: b.lanes }, (_, i) => i) : widening ? Array.from({length: Math.floor((lane+1)*b.lanes/a.lanes)-Math.floor(lane*b.lanes/a.lanes)},(_,i)=>Math.floor(lane*b.lanes/a.lanes)+i) : [a.kind === 'ramp' ? (rampInfo(config, config.roads.find(r => r.id === a.roadId))?.side < 0 ? 0 : b.lanes - 1) : a.toll ? Math.min(b.lanes - 1, Math.floor(lane * b.lanes / a.lanes)) : node.type === 'bend' ? Math.min(lane, b.lanes - 1) : ['anchor', 'straight', 'transition'].includes(node.type) ? Math.min(lane, b.lanes - 1) : turn === 'right' ? Math.max(0, b.lanes - turningLanes.length + turnIndex) : turn === 'straight' ? Math.min(lane, b.lanes - 1) : turn === 'left' ? Math.min(turnIndex, b.lanes - 1) : 0];
         for (const targetLane of targets) {
         const geometry = connectorGeometry(a, b, lane, targetLane);
-        const path = { ...geometry, length: ['straight', 'transition'].includes(node.type) && !node.internal ? node.length ?? geometry.length : geometry.length, id: `c:${a.id}:${lane}>${b.id}${b.toll || widening ? `:${targetLane}` : ''}`, type: 'connector', node: node.id, from: a.paths[lane].id, to: b.paths[targetLane].id, turn, incoming: a.id, outgoing: b.id, speed: node.type === 'bend' ? bendSpeedLimit(geometry.points, Math.min(a.speed,b.speed)) : ['transition', 'straight'].includes(node.type) || (['merge', 'exit'].includes(node.type) && turn === 'straight') ? Math.min(a.speed, b.speed) : turn === 'straight' ? 35 : turn === 'uturn' ? 12 : 22, conflicts: [], mergeGroup: ['straight', 'transition', 'merge', 'exit'].includes(node.type) && !b.toll ? b.paths[targetLane].id : null };
+        const path = { ...geometry, length: ['straight', 'transition'].includes(node.type) && !node.internal ? node.length ?? geometry.length : geometry.length, id: `c:${a.id}:${lane}>${b.id}${b.toll || widening ? `:${targetLane}` : ''}`, type: 'connector', node: node.id, from: a.paths[lane].id, to: b.paths[targetLane].id, turn, incoming: a.id, outgoing: b.id, speed: ['anchor','bend'].includes(node.type) ? bendSpeedLimit(geometry.points, Math.min(a.speed,b.speed)) : ['transition', 'straight'].includes(node.type) || (['merge', 'exit'].includes(node.type) && turn === 'straight') ? Math.min(a.speed, b.speed) : turn === 'straight' ? 35 : turn === 'uturn' ? 12 : 22, conflicts: [], mergeGroup: ['anchor', 'straight', 'transition', 'merge', 'exit'].includes(node.type) && !b.toll ? b.paths[targetLane].id : null };
         connectors[path.id] = paths[path.id] = path;
         }
       }

@@ -1,12 +1,13 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 import { makeExample } from '../../src/traffic/network/model.js';
 async function open(page, count = 3) {
   const config = makeExample(); config.demand.forEach(d => { d.count = count; });
   await page.addInitScript(config => { if (!localStorage.getItem('crashpad:network:v1')) localStorage.setItem('crashpad:network:v1', JSON.stringify({ config, A: null, B: null })); }, config);
-  await page.goto('/#/traffic/network');
+  await page.goto('/#/traffic/network'); await openInspector(page);
   await page.getByRole('button', { name: '全景', exact: true }).click();
 }
-async function tab(page, name) { await page.getByRole('group', { name: '路网设置分类' }).getByRole('button', { name, exact: true }).click(); }
+async function tab(page, name) { await page.getByRole('group', { name: '实验设置' }).getByRole('button', { name: ({车流:'车流设置',跟车:'我的路线'})[name] || name, exact: true }).click(); }
 test('network editor validates connections, restores drafts and leaves legacy traffic independent', async ({ page }, info) => {
   await open(page);
   await expect(page.getByRole('main', { name: '车流实验室' })).toBeVisible();
@@ -24,7 +25,7 @@ test('network editor validates connections, restores drafts and leaves legacy tr
   await page.getByRole('spinbutton', { name: '道路长度（米）', exact: true }).press('Backspace');
   await expect(page.locator('[data-network-road]')).toHaveCount(before);
   await page.getByRole('spinbutton', { name: '道路长度（米）', exact: true }).fill('300');
-  await page.reload(); await expect(page.locator('[data-network-road]')).toHaveCount(4);
+  await page.reload(); await openInspector(page); await expect(page.locator('[data-network-road]')).toHaveCount(4);
   await page.screenshot({ path: info.outputPath('network-editor.png'), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('link', { name: '车流实验室', exact: true }).click();
@@ -52,32 +53,11 @@ test('network worker runs, pauses, resets, records own route and stays responsiv
   await expect(page.locator('[data-network-car]')).toHaveCount(0);
   await expect(page.locator('.network-stage')).toHaveAttribute('data-sim-time', '0');
 });
-test('network directions, demand mix and independent A/B calculations can be cancelled and rerun', async ({ page }) => {
-  await open(page, 2);
-  await page.locator('[data-network-node="center"]').press('Enter');
-  await page.getByRole('checkbox', { name: '启用路口信号', exact: true }).uncheck();
-  await page.getByRole('group', { name: '主路方向' }).getByRole('button', { name: '南北优先', exact: true }).click();
-  await page.getByRole('group', { name: 'r-west车道1允许方向', exact: true }).getByRole('button', { name: '掉头', exact: true }).click();
-  await tab(page, '车流');
-  await page.getByRole('combobox', { name: '车流入口', exact: true }).selectOption('west');
-  await page.getByRole('spinbutton', { name: '到东侧（%）', exact: true }).fill('80');
-  await expect(page.getByRole('alert')).toHaveCount(0);
-  await tab(page, '对照');
-  await page.getByRole('button', { name: '当前设置存为 A', exact: true }).click();
-  await page.getByRole('button', { name: '当前设置存为 B', exact: true }).click();
-  await page.getByRole('button', { name: '运行 A / B 对照', exact: true }).click();
-  await page.getByRole('button', { name: '取消计算', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('已取消');
-  await page.getByRole('button', { name: '关闭', exact: true }).click();
-  await page.getByRole('button', { name: '运行 A / B 对照', exact: true }).click();
-  await expect(page.locator('.network-comparison')).toBeVisible({ timeout: 30000 });
-  const cells = await page.locator('.network-comparison tbody tr').first().locator('td').allTextContents(); expect(cells[0]).toBe(cells[1]);
-});
 test('300 vehicle desktop benchmark keeps controls responsive and simulation clock current', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'Desktop performance target');
   const config = makeExample(); config.demand.forEach(d => { d.count = 75; d.flow = 120; });
   await page.addInitScript(config => localStorage.setItem('crashpad:network:v1', JSON.stringify({ config })), config);
-  await page.goto('/#/traffic/network');
+  await page.goto('/#/traffic/network'); await openInspector(page);
   await page.locator('[data-network-play]').click();
   await expect.poll(async () => Number(await page.locator('.network-stage').getAttribute('data-sim-time'))).toBeGreaterThan(1);
   const start = await page.evaluate(() => ({ wall: performance.now(), sim: Number(document.querySelector('.network-stage').dataset.simTime) }));

@@ -1,7 +1,8 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 
 test('drag actual route curve handle, undo and persist on reload', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   const handle = page.locator('#scene [data-route-bend="A"]');
   await handle.scrollIntoViewIfNeeded();
   const before = await page.locator('#scene').evaluate(el => el.innerHTML);
@@ -13,7 +14,7 @@ test('drag actual route curve handle, undo and persist on reload', async ({ page
   expect(await page.locator('#scene').evaluate(el => el.innerHTML)).not.toBe(before);
   await page.locator('[data-action="undo"]').click();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('crashpad:draft:v1')).cars[0].routeBend)).toBeUndefined();
-  await page.locator('[data-action="redo"]').click(); await page.reload();
+  await page.locator('[data-action="redo"]').click(); await page.reload(); await openInspector(page);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('crashpad:draft:v1')).cars[0].routeBend)).toEqual(bend);
   await expect(handle).toBeVisible();
 });

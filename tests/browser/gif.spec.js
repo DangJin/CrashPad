@@ -1,3 +1,4 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 import { createScene, addParticipant } from '../../src/model.js';
 import { readFile } from 'node:fs/promises';
@@ -7,10 +8,10 @@ test('GIF export contains a looping complete animation at the selected portrait 
   let scene = createScene();
   for (const type of ['pedestrian', 'ebike', 'bicycle']) scene = addParticipant(scene, type);
   await page.addInitScript(scene => localStorage.setItem('crashpad:draft:v1', JSON.stringify(scene)), scene);
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   await page.locator('[data-plan="changeRight"]').click();
   const before = await page.evaluate(() => localStorage.getItem('crashpad:draft:v1'));
-  await page.locator('.app-header [data-action="preview"]').click();
+  await page.locator('.workbench-header [data-action="preview"]').click();
   await page.locator('#export-format').locator('[data-value="' + 'gif' + '"]').click();
   await page.locator('#export-ratio').locator('[data-value="' + 'douyin' + '"]').click();
   await expect(page.locator('#export-dimensions')).toHaveText('540 × 960 px');
@@ -33,10 +34,10 @@ test('GIF export contains a looping complete animation at the selected portrait 
 });
 
 test('GIF encoding can be cancelled without generating a download or changing the draft', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   const downloads = []; page.on('download', download => downloads.push(download));
   const before = await page.evaluate(() => localStorage.getItem('crashpad:draft:v1'));
-  await page.locator('.app-header [data-action="preview"]').click();
+  await page.locator('.workbench-header [data-action="preview"]').click();
   await page.locator('#export-format').locator('[data-value="' + 'gif' + '"]').click();
   await page.locator('#download').click();
   await page.locator('#back-edit').click();

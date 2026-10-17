@@ -1,3 +1,4 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 
 const draft = page => page.evaluate(() => localStorage.getItem('crashpad:draft:v1'));
@@ -6,7 +7,7 @@ async function seek(page, value) {
   await page.locator('#replay-progress').evaluate((el, value) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, value); el.dispatchEvent(new Event('input', { bubbles: true })); }, value);
 }
 test('replay moves vehicles, pauses, seeks, finishes and restores editing without changing the draft', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   const initial = await draft(page), endA = await pose(page, 'A');
   await page.locator('#replay-play').click();
   await expect(page.locator('#replay-play')).toHaveText('暂停');
@@ -30,7 +31,7 @@ test('replay moves vehicles, pauses, seeks, finishes and restores editing withou
     expect(exit.x + exit.width).toBeLessThanOrEqual(320);
     await page.setViewportSize(viewport);
   }
-  await page.locator('#replay-speed').selectOption('2');
+  await page.getByRole('group', { name: '回放速度', exact: true }).getByRole('button', { name: '2×', exact: true }).click();
   await page.locator('#replay-play').click();
   await expect(page.locator('#replay-status')).toHaveText('回放结束，可直接编辑');
   expect(await pose(page, 'A')).toBe(endA);
@@ -53,7 +54,7 @@ test('replay moves vehicles, pauses, seeks, finishes and restores editing withou
   expect(await draft(page)).toBe(initial);
 });
 test('stationary cars stay put, collision appears at the end, and export uses the final scene', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   if (page.viewportSize().width <= 860) await page.locator('.tool-rail [data-tool=\"cars\"]').click();
   await page.locator('[data-select="B"]').click();
   await page.locator('[data-motion="stopped"]').click();
@@ -74,7 +75,7 @@ test('stationary cars stay put, collision appears at the end, and export uses th
   await expect(page.locator('#exit-replay')).toHaveCount(0);
   await page.locator('[data-action="rewind"]').click();
   await expect(page.locator('#replay-time')).toHaveText('0.0 / 4.0 s');
-  await page.locator('.app-header [data-action="preview"]').click();
+  await page.locator('.workbench-header [data-action="preview"]').click();
   await expect(page.locator('#preview')).toBeVisible();
   await expect(page.locator('#preview-image [data-car-id="A"]')).toHaveAttribute('transform', 'translate(340 360)');
   expect(await draft(page)).toBe(before);

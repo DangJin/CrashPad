@@ -1,3 +1,4 @@
+import { insertCurveSection } from './curveEditing.js';
 import { normalizeRamps } from './ramps.js';
 import { clone, RADIUS } from './model.js';
 import { compileRoad } from '../engine.js';
@@ -68,6 +69,7 @@ export function insertTemplate(config, selected, kind, stamp = Date.now()) {
     next.demand.push(...example.demand.map(d => ({ ...d, node: map[d.node], count: empty ? d.count : 0, destinations: Object.fromEntries(Object.entries(d.destinations).map(([id, weight]) => [map[id], weight])) })));
     return { config: normalizeRamps(next), selected: { type: 'node', id: map.section } };
   }
+  if(road.geometry)return insertCurveSection(config,road.id,kind,`section-${stamp}`);
   const from = next.nodes.find(n => n.id === road.from), to = next.nodes.find(n => n.id === road.to), vertical = from.x === to.x, axis = vertical ? 'y' : 'x', other = vertical ? 'x' : 'y', forward = to[axis] > from[axis], low = Math.min(from[axis], to[axis]), high = Math.max(from[axis], to[axis]), middle = (low + high) / 2;
   const appending = selected?.type !== 'road' && to.type === 'terminal' && to.role !== 'source' && next.roads.filter(r => r.from === to.id || r.to === to.id).length === 1;
   const radius = requested === 'toll' ? 190 : requested === 'transition' ? 100 : 50, extra = Math.max(0, 2 * (radius + 180) - (high - low));

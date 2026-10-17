@@ -1,10 +1,11 @@
+import { openInspector } from './workbench-helpers.js';
 import { test, expect } from '@playwright/test';
 async function seek(page, value) {
   await page.locator('#replay-progress').evaluate((el, value) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, value); el.dispatchEvent(new Event('input', { bubbles: true })); }, value);
 }
 
 test('visual damage selection toggles body regions and full preview joins past and future without changing the scene', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/'); await openInspector(page);
   await page.locator('[data-damage-part="left"]').click();
   await expect(page.locator('[data-damage-part="left"]')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('[data-damage-part="left"]').click();
@@ -14,7 +15,7 @@ test('visual damage selection toggles body regions and full preview joins past a
   const before = await page.evaluate(() => localStorage.getItem('crashpad:draft:v1'));
   const pose = await page.locator('#scene [data-car-id="A"]').getAttribute('transform');
   await page.locator('[data-action="preview-full"]').click();
-  await expect(page.locator('#replay-mode')).toHaveValue('full');
+  await expect(page.getByRole('group', { name: '预览内容', exact: true }).getByRole('button', { name: '完整演示', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await seek(page, '250');
   await expect(page.locator('#replay-time')).toHaveText('2.0 / 8.0 s');
   expect(await page.locator('#scene [data-car-id="A"]').getAttribute('transform')).not.toBe(pose);

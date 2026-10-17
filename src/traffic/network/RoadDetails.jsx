@@ -1,6 +1,7 @@
 import { LANES, pointOn, junctionRadius } from './model.js';
 import { rampAuxiliary } from './ramps.js';
 import { facilityGeometry, linePath, polygonPoints, offsetLine, visualRoadEdges } from './roadVisualGeometry.js';
+import { roadDetail } from './canvasDetail.js';
 const white='#f3f3e9';
 
 export function RampSurface({config,node}){
@@ -59,7 +60,7 @@ export function RoadArrows({edge}){
   })}</g>;
 }
 
-export function TollDetails({config,node,net,snapshot,onSelect,screen}){
+export function TollDetails({config,node,net,snapshot,onSelect,screen,scaleX=1,scaleY=1}){
   const shape=facilityGeometry(config,node),angle=node.rotation*Math.PI/180,dx=Math.cos(angle),dy=Math.sin(angle);
   const nodes=Object.fromEntries(config.nodes.map(n=>[n.id,n]));
   const roads=config.roads.filter(r=>r.from===node.id||r.to===node.id);
@@ -72,13 +73,14 @@ export function TollDetails({config,node,net,snapshot,onSelect,screen}){
     const serving=snapshot?.cars.some(c=>net?.paths[c.path]?.toll?.station===node.id&&net.paths[c.path].lane===lane&&c.tollService);
     const label=shape.point(sign*(-10),sign*(lane+.5)*LANES);
     return <g key={`${sign}:${lane}`} data-network-toll-booth={node.id} data-booth-type={type} role="button" tabIndex={0} aria-label={`${node.id} 窗口 ${lane+1} ${type==='etc'?'ETC':'人工'}`} onClick={()=>onSelect({type:'node',id:node.id})} onKeyDown={e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();onSelect({type:'node',id:node.id});}}}>
+      <title>{`窗口 ${lane+1} · ${type==='etc'?'ETC':'人工'}`}</title>
       <g transform={`translate(${p.x} ${p.y}) rotate(${heading})`}>
         <rect data-toll-island x="-13" y="-7" width="27" height="2.4" rx="1.2" fill="#dadfdc" stroke="#e7c556" strokeWidth=".6"/>
         <rect x="-5" y="-8" width="8" height="4.5" rx=".6" fill="#c8d3da" stroke="#344758" strokeWidth=".6"/>
         <path d="M-4-7H2" stroke="#6c899b" strokeWidth="1.3"/>
         <path data-toll-barrier d={serving?'M6-4V4':'M6-4L12-4'} stroke={serving?'#ec6967':'#e4ca66'} strokeWidth="1.2"/>
       </g>
-      <g transform={screen(label.x,label.y,heading)}><rect x="-14" y="-6" width="28" height="12" rx="2" fill={type==='etc'?'#187957':'#315eae'}/><text x="0" y="3" fill="white" fontSize="9" textAnchor="middle">{type==='etc'?'ETC':'人工'}</text></g>
+      {roadDetail(heading,scaleX,scaleY).boothLabels && <g transform={screen(label.x,label.y)}><rect x="-14" y="-6" width="28" height="12" rx="2" fill={type==='etc'?'#187957':'#315eae'}/><text x="0" y="3" fill="white" fontSize="9" textAnchor="middle">{type==='etc'?'ETC':'人工'}</text></g>}
     </g>;
   }))}</g>;
 }

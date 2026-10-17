@@ -1,3 +1,4 @@
+import { curveLane, heading as curveHeading } from './curveGeometry.js';
 import { LANES, junctionRadius, pathGeometry, connectorGeometry, laneTurns, turnFor } from './model.js';
 import { roadMouths } from './layout.js';
 import { rampPoints } from './ramps.js';
@@ -14,10 +15,10 @@ export function visualRoadEdges(config, road) {
     const start = reverse ? mouth.end : mouth.start, end = reverse ? mouth.start : mouth.end;
     const from = reverse ? road.to : road.from, to = reverse ? road.from : road.to;
     const heading = (Math.atan2(dy,dx)*180/Math.PI+360)%360;
-    return { id: `${road.id}:${from}`, roadId:road.id, from,to, heading, lanes:road.lanes, length:road.length, kind:road.kind,
+    return {curved:!!road.geometry,...(road.geometry?{startHeading:reverse?curveHeading(mouth.curve.at(-1),mouth.curve.at(-2)):curveHeading(mouth.curve[0],mouth.curve[1]),endHeading:reverse?curveHeading(mouth.curve[1],mouth.curve[0]):curveHeading(mouth.curve.at(-2),mouth.curve.at(-1))}:{}), id: `${road.id}:${from}`, roadId:road.id, from,to, heading, lanes:road.lanes, length:road.length, kind:road.kind,
       paths:Array.from({length:road.lanes},(_,lane) => {
         const offset=(lane+.5)*LANES;
-        const points = rampPoints(config,road,lane) || [{x:start.x-dy*offset,y:start.y+dx*offset},{x:end.x-dy*offset,y:end.y+dx*offset}];
+        const points = curveLane(config,road,lane,reverse) || rampPoints(config,road,lane) || [{x:start.x-dy*offset,y:start.y+dx*offset},{x:end.x-dy*offset,y:end.y+dx*offset}];
         return {...pathGeometry(points,road.length),id:`${road.id}:${from}:${lane}`,lane};
       }) };
   });
