@@ -11,6 +11,7 @@ export default function SceneCanvas({ editor, selected, chooseCar, chooseSignal,
   function down(event) {
     if (event.button !== 0 || replay.active) return;
     editor.flushText();
+    svgRef.current.focus({ preventScroll: true });
     const p = point(event);
     if (tool === 'collision') { editor.mutate(s => { s.collision = p; }); setTool('select'); notify('已标记碰撞点，可拖动调整'); return; }
     const signal = event.target.closest('[data-signal-direction]');
@@ -48,5 +49,5 @@ export default function SceneCanvas({ editor, selected, chooseCar, chooseSignal,
     if (svgRef.current.hasPointerCapture(event.pointerId)) svgRef.current.releasePointerCapture(event.pointerId);
     editor.commit();
   }
-  return <div className="canvas-stage"><div className="stage-sheet" style={{ width: `${zoom * 100}%`, height: `${zoom * 100}%` }}><svg id="scene" ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} xmlns="http://www.w3.org/2000/svg" role="img" aria-label={replay.active ? '事故过程模拟回放' : '事故示意图，拖动车辆调整位置'} className={tool === 'collision' ? 'marking' : ''} onKeyDown={e => { if (!replay.active && ['Enter', ' '].includes(e.key)) { const signal = e.target.closest('[data-signal-direction]'); if (signal) { e.preventDefault(); chooseSignal(signal.dataset.signalDirection); } } }} onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end} dangerouslySetInnerHTML={{ __html: sceneMarkup(editor.scene, { selected, interactive: true, grid, progress: replay.active ? replay.progress : null, replayMode: replay.mode }) }} /></div></div>;
+  return <div className="canvas-stage"><div className="stage-sheet" style={{ width: `${zoom * 100}%`, height: `${zoom * 100}%` }}><svg id="scene" tabIndex={-1} ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} xmlns="http://www.w3.org/2000/svg" role="img" aria-label={replay.active ? '事故过程模拟回放' : '事故示意图，拖动车辆调整位置'} className={tool === 'collision' ? 'marking' : ''} onKeyDown={e => { if (!replay.active && ['Enter', ' '].includes(e.key)) { const signal = e.target.closest('[data-signal-direction]'); if (signal) { e.preventDefault(); chooseSignal(signal.dataset.signalDirection); } } }} onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end} dangerouslySetInnerHTML={{ __html: sceneMarkup(editor.scene, { selected, interactive: true, grid, progress: replay.active ? replay.progress : null, replayMode: replay.mode }) }} /></div></div>;
 }
